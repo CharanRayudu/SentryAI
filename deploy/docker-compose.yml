@@ -1,0 +1,156 @@
+version: '3.8'
+
+services:
+  # -------------------------
+  # Infrastructure: The Data Plane
+  # -------------------------
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: sentry
+      POSTGRES_PASSWORD: sentry_password
+      POSTGRES_DB: sentry_core
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - sentry-net
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - sentry-net
+
+  # Replaced Qdrant with Weaviate as per new spec
+  weaviate:
+    image: semitechnologies/weaviate:1.24.1
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: ''
+      CLUSTER_HOSTNAME: 'node1'
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    networks:
+      - sentry-net
+
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/sentry_password
+      NEO4J_PLUGINS: '["apoc"]'
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - sentry-net
+
+  # -------------------------
+  # Workflow Engine: The Execution Plane Backbone
+  # -------------------------
+  temporal:
+    image: temporalio/auto-setup:latest
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=sentry
+      - POSTGRES_PWD=sentry_password
+      - POSTGRES_DB=temporal
+    depends_on:
+      - postgres
+    ports:
+      - "7233:7233"
+    networks:
+      - sentry-net
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    ports:
+      - "8233:8080"
+    depends_on:
+      - temporal
+    networks:
+      - sentry-net
+
+  # -------------------------
+  # Application Services
+  # -------------------------
+  api:
+    build:
+      context: ../apps/api
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=postgresql://sentry:sentry_password@postgres:5432/sentry_core
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_HOST=temporal:7233
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=sentry_password
+      - WEAVIATE_URL=http://weaviate:8080
+    volumes:
+      - ../apps/api:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+      - temporal
+      - neo4j
+      - weaviate
+    networks:
+      - sentry-net
+
+  worker:
+    build:
+      context: ../apps/worker
+    command: python main.py
+    # Critical: Worker needs access to Docker socket to spawn sandboxed tool containers (Phase 1 Strategy)
+    volumes:
+      - ../apps/worker:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TEMPORAL_HOST=temporal:7233
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=sentry_password
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+    depends_on:
+      - temporal
+      - api
+    networks:
+      - sentry-net
+
+  web:
+    build:
+      context: ../apps/web
+    command: npm run dev
+    volumes:
+      - ../apps/web:/app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - sentry-net
+
+networks:
+  sentry-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  weaviate_data:
+  neo4j_data:
