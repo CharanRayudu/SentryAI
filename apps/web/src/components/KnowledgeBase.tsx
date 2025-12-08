@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, FileText, Database, Plus, X } from 'lucide-react';
+import { Upload, FileText, X } from 'lucide-react';
 
 export default function KnowledgeBase() {
     const [activeTab, setActiveTab] = useState<'docs' | 'specs'>('specs');
@@ -16,13 +16,14 @@ export default function KnowledgeBase() {
 
             {/* Upload Zone */}
             <div className="p-6">
-                <div className="border border-dashed border-[#333] hover:border-purple-500/50 bg-[#0a0a0a] rounded-xl p-8 flex flex-col items-center justify-center transition-colors cursor-pointer group">
+                <label className="border border-dashed border-[#333] hover:border-purple-500/50 bg-[#0a0a0a] rounded-xl p-8 flex flex-col items-center justify-center transition-colors cursor-pointer group">
+                    <input type="file" className="hidden" accept=".yaml,.json,.pdf,.md,.csv" />
                     <div className="w-12 h-12 rounded-full bg-[#111] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                         <Upload size={20} className="text-gray-400 group-hover:text-purple-400" />
                     </div>
-                    <h3 className="text-sm font-medium mb-1">Drop specifications here</h3>
-                    <p className="text-xs text-gray-500">Supports .yaml, .json, .pdf, .md</p>
-                </div>
+                    <h3 className="text-sm font-medium mb-1">Drop specifications or knowledge here</h3>
+                    <p className="text-xs text-gray-500">Supports .md, .csv, .yaml, .json, .pdf</p>
+                </label>
             </div>
 
             {/* File Lists */}
@@ -33,6 +34,8 @@ export default function KnowledgeBase() {
                 </div>
 
                 <div className="space-y-2">
+                    <FileItem name="vulnerability_patterns.md" type="MARKDOWN" size="45 KB" />
+                    <FileItem name="past_incidents.csv" type="CSV" size="120 KB" />
                     <FileItem name="billing-api-v2.yaml" type="OPENAPI" size="1.2 MB" />
                     <FileItem name="auth-flow-diagram.pdf" type="PDF" size="4.5 MB" />
                     <FileItem name="legacy-endpoints.json" type="JSON" size="12 KB" />

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 interface SidebarProps {
-    onViewChange: (view: 'dashboard' | 'active_scan' | 'knowledge') => void;
+    onViewChange: (view: 'dashboard' | 'active_scan' | 'knowledge' | 'tools' | 'agents') => void;
     currentView: string;
 }
 
@@ -41,8 +41,8 @@ export default function Sidebar({ onViewChange, currentView }: SidebarProps) {
                 <NavItem
                     icon={<Cpu size={16} />}
                     label="Agents"
-                    active={currentView === 'dashboard'}
-                    onClick={() => onViewChange('dashboard')}
+                    active={currentView === 'agents'}
+                    onClick={() => onViewChange('agents')}
                 />
                 <NavItem
                     icon={<Folder size={16} />}
@@ -57,6 +57,8 @@ export default function Sidebar({ onViewChange, currentView }: SidebarProps) {
                 <NavItem
                     icon={<Wrench size={16} />}
                     label="Tools"
+                    active={currentView === 'tools'}
+                    onClick={() => onViewChange('tools')}
                 />
                 <NavItem
                     icon={<Terminal size={16} />}
