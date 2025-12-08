@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #050505;
+    /* Deep black compatible with Neo */
+    --sidebar-bg: #0a0a0a;
+    --panel-bg: #111111;
+    --border: #222222;
+    --foreground: #ededed;
+    --accent: #6d28d9;
+    /* Purple accent */
+    --accent-glow: rgba(109, 40, 217, 0.3);
+    --success: #10b981;
+    --muted: #737373;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+}
+
+/* Glass & Panel Utilities */
+.glass-panel {
+  background: rgba(18, 18, 18, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+.neo-input {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+
+.neo-input:focus-within {
+  border-color: var(--muted);
+  box-shadow: 0 0 0 1px var(--muted);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
