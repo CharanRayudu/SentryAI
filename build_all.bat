@@ -2,7 +2,7 @@
 echo [SentryAI] Building Service Images...
 
 cd deploy
-docker-compose build --parallel
+docker-compose --env-file ../.env build --parallel
 
 if %errorlevel% neq 0 (
     echo [ERROR] Build failed.

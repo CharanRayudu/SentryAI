@@ -1,13 +1,32 @@
 from temporalio import activity
 import docker
 import asyncio
+import json
+from ai_engine import create_scan_plan
 
-# Initialize Docker Client (connects to the socket mounted in docker-compose)
+# Initialize Docker Client
 try:
     docker_client = docker.from_env()
 except Exception as e:
     print(f"Warning: Docker client failed to initialize: {e}")
     docker_client = None
+
+@activity.defn
+async def ai_plan_scan(prompt: str) -> list:
+    """
+    Uses NVIDIA NIM (via LangChain) to generate a scan plan.
+    """
+    activity.logger.info(f"Generating plan for: {prompt}")
+    try:
+        # This calls our NVIDIA-only module
+        plan_json = create_scan_plan(prompt)
+        # Basic cleanup if the LLM wraps in markdown codes
+        plan_json = plan_json.replace("```json", "").replace("```", "").strip()
+        plan = json.loads(plan_json)
+        return plan
+    except Exception as e:
+        activity.logger.error(f"Planning failed: {e}")
+        return [{"error": str(e)}]
 
 @activity.defn
 async def run_tool_scan(params: dict) -> list:
@@ -21,7 +40,6 @@ async def run_tool_scan(params: dict) -> list:
         return [{"error": "Docker socket not connected. Cannot run scan."}]
 
     # Sandwich Strategy: Ephemeral Container
-    # We pull the image first (this might take time on first run)
     image_map = {
         "subfinder": "projectdiscovery/subfinder:latest",
         "nuclei": "projectdiscovery/nuclei:latest",
@@ -33,24 +51,27 @@ async def run_tool_scan(params: dict) -> list:
         return [{"error": f"Unknown tool: {tool}"}]
 
     try:
-        # Run container
-        # Equivalent to: docker run --rm projectdiscovery/subfinder -d target.com
-        cmd = f"-d {target} {args}"
-        if tool == "nuclei":
-            cmd = f"-u {target} {args}"
+        # Construct command
+        cmd = f"{args}" 
+        # Quick fix for tool-specific argument patterns
+        if tool == "subfinder" and "-d" not in args:
+             cmd = f"-d {target} {args}"
+        elif tool == "nuclei" and "-u" not in args:
+             cmd = f"-u {target} {args}"
+        elif tool == "naabu" and "-host" not in args:
+             cmd = f"-host {target} {args}"
             
         logs = docker_client.containers.run(
             image,
             command=cmd,
             remove=True,
-            network_mode="host", # Caution: Phase 2 should lock this down
+            network_mode="host", 
             stderr=True,
             stdout=True
         )
         
         output = logs.decode('utf-8')
-        # TODO: Parse output into JSON/Graph Nodes
-        return [{"raw": output}]
+        return [{"tool": tool, "raw": output}]
         
     except Exception as e:
         activity.logger.error(f"Scan failed: {e}")

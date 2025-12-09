@@ -3,3 +3,15 @@ uvicorn[standard]
 pydantic
 python-dotenv
 httpx
+aiohttp
+aiofiles
+temporalio
+redis
+sqlalchemy[asyncio]
+asyncpg
+websockets
+psycopg2-binary
+neo4j
+weaviate-client
+python-multipart
+pyjwt

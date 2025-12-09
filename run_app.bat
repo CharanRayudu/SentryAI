@@ -7,7 +7,7 @@ if not exist ".env" (
 )
 
 cd deploy
-docker-compose up -d
+docker-compose --env-file ../.env up -d
 
 echo [SentryAI] Services are starting...
 echo   - Dashboard: http://localhost:3000

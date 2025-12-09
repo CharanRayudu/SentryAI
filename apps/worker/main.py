@@ -2,7 +2,8 @@ import os
 from temporalio import workflow
 from temporalio.client import Client
 from temporalio.worker import Worker
-from activities import run_tool_scan
+from activities import run_tool_scan, ai_plan_scan
+from notifications import notify_integrations
 
 @workflow.defn
 class SecurityScanWorkflow:
@@ -35,7 +36,7 @@ async def main():
         client,
         task_queue="sentry-scan-queue",
         workflows=[SecurityScanWorkflow],
-        activities=[run_tool_scan],
+        activities=[run_tool_scan, ai_plan_scan, notify_integrations],
     )
     print("Worker started, listening on 'sentry-scan-queue'...")
     await worker.run()

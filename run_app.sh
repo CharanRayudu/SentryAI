@@ -11,12 +11,12 @@ fi
 # Navigate to deploy directory
 cd deploy || exit
 
-# Run Docker Compose
+# Run Docker Compose with env file from parent directory
 # Use 'docker compose' if v2, fallback to 'docker-compose'
 if command -v docker-compose &> /dev/null; then
-    docker-compose up -d
+    docker-compose --env-file ../.env up -d
 else
-    docker compose up -d
+    docker compose --env-file ../.env up -d
 fi
 
 echo "[SentryAI] Services are starting..."
