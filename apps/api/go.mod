@@ -1,6 +1,6 @@
 module sentry/apps/api
 
-go 1.22.0
+go 1.23.0
 
 require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
@@ -18,5 +18,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
+	go.temporal.io/sdk v1.38.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
 )

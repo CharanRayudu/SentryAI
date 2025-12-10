@@ -1,51 +1,24 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import {
     Terminal,
-    Shield,
-    AlertTriangle,
-    CheckCircle,
-    Loader2,
-    Maximize2,
-    Activity,
-    Target
+    Target,
+    Activity
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useTaskStore } from '@/stores/useTaskStore';
 
 interface ActiveOperationProps {
-    target: string;
-    onComplete: () => void;
+    taskId: string;
 }
 
-export default function ActiveOperation({ target, onComplete }: ActiveOperationProps) {
-    const [status, setStatus] = useState('Initializing agents...');
-    const [progress, setProgress] = useState(0);
-    const [logs, setLogs] = useState<string[]>([]);
+export default function ActiveOperation({ taskId }: ActiveOperationProps) {
+    const { tasks } = useTaskStore();
+    const task = tasks.find(t => t.id === taskId);
 
-    useEffect(() => {
-        // Simulation of mission progress
-        const interval = setInterval(() => {
-            setProgress(prev => {
-                if (prev >= 100) {
-                    clearInterval(interval);
-                    setTimeout(onComplete, 1000);
-                    return 100;
-                }
-                const increment = Math.random() * 5;
-                return Math.min(prev + increment, 100);
-            });
+    if (!task) return null;
 
-            // Random log generation
-            if (Math.random() > 0.7) {
-                const newLog = `[${new Date().toLocaleTimeString()}] Scanning port ${Math.floor(Math.random() * 65535)}`;
-                setLogs(prev => [...prev.slice(-9), newLog]);
-                setStatus(prev => prev === 'Analyzing results...' ? prev : 'Scanning target infrastructure...');
-            }
-        }, 500);
-
-        return () => clearInterval(interval);
-    }, [onComplete]);
+    const progress = task.status === 'success' ? 100 : task.status === 'running' ? 50 : 0;
+    const statusText = task.status === 'running' ? 'Executing mission...' : task.status === 'success' ? 'Mission Complete' : 'Mission Failed';
 
     return (
         <div className="flex-1 flex flex-col p-6 h-full overflow-hidden">
@@ -56,16 +29,16 @@ export default function ActiveOperation({ target, onComplete }: ActiveOperationP
                         <Target className="text-purple-400" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold tracking-tight mb-0.5">{target}</h2>
+                        <h2 className="text-xl font-bold tracking-tight mb-0.5">{task.title}</h2>
                         <div className="flex items-center gap-2 text-xs text-zinc-400 font-mono">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                            ACTIVE OPERATION
+                            <span className={`w-2 h-2 rounded-full animate-pulse ${task.status === 'running' ? 'bg-green-500' : 'bg-red-500'}`} />
+                            {task.status.toUpperCase()}
                         </div>
                     </div>
                 </div>
                 <div className="text-right">
                     <div className="text-3xl font-mono font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400">
-                        {Math.floor(progress)}%
+                        {progress}%
                     </div>
                     <div className="text-xs text-zinc-500 font-mono uppercase tracking-wider">Completion</div>
                 </div>
@@ -88,7 +61,7 @@ export default function ActiveOperation({ target, onComplete }: ActiveOperationP
 
                 {/* Terminal Content */}
                 <div className="flex-1 p-4 font-mono text-sm overflow-y-auto space-y-2">
-                    {logs.map((log, i) => (
+                    {task.logs.map((log, i) => (
                         <motion.div
                             key={i}
                             initial={{ opacity: 0, x: -10 }}
@@ -99,21 +72,22 @@ export default function ActiveOperation({ target, onComplete }: ActiveOperationP
                             {log}
                         </motion.div>
                     ))}
-                    <div className="flex items-center gap-2 text-purple-400 animate-pulse">
-                        <span className="text-green-500">$</span>
-                        <span className="w-2 h-4 bg-purple-400" />
-                    </div>
+                    {task.status === 'running' && (
+                        <div className="flex items-center gap-2 text-purple-400 animate-pulse">
+                            <span className="text-green-500">$</span>
+                            <span className="w-2 h-4 bg-purple-400" />
+                        </div>
+                    )}
                 </div>
 
                 {/* Status Bar */}
                 <div className="bg-white/5 border-t border-[#ffffff05] px-4 py-2 flex items-center gap-4 text-xs font-mono text-zinc-500">
                     <div className="flex items-center gap-1.5">
                         <Activity size={12} />
-                        <span>Agents: 4 Online</span>
+                        <span>Link: Stable</span>
                     </div>
                     <div className="h-3 w-px bg-zinc-800" />
-                    <div>Tasks: {Math.floor(progress / 10)}/12</div>
-                    <div className="ml-auto text-purple-400">{status}</div>
+                    <div className="ml-auto text-purple-400">{statusText}</div>
                 </div>
             </div>
 

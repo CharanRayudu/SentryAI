@@ -1,8 +1,34 @@
 import React, { useState } from 'react';
 import { Terminal, FileText, Code2, Maximize2, MoreHorizontal } from 'lucide-react';
+import { useTaskStore } from '@/stores/useTaskStore';
+
+function LogStream({ taskId }: { taskId: string }) {
+    const { tasks } = useTaskStore();
+    const task = tasks.find(t => t.id === taskId);
+
+    if (!task) return null;
+
+    return (
+        <div className="space-y-1">
+            <div className="text-green-400 mb-2"># Mission: {task.title} (ID: {task.id})</div>
+            {task.logs.map((log, i) => (
+                <div key={i} className="text-zinc-300">
+                    <span className="text-zinc-600 mr-2">[{i}]</span>
+                    {log}
+                </div>
+            ))}
+            {task.status === 'running' && (
+                <div className="mt-2">
+                    <span className="text-purple-400 animate-pulse">_</span>
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function WorkspacePanel() {
     const [activeTab, setActiveTab] = useState<'terminal' | 'report' | 'diff'>('terminal');
+    const { activeTaskId } = useTaskStore();
 
     return (
         <div className="flex-grow flex flex-col bg-surface-900 border-t border-border-subtle mt-4 min-h-[300px]">
@@ -46,13 +72,11 @@ export default function WorkspacePanel() {
             <div className="flex-1 relative font-mono text-sm overflow-hidden">
                 {activeTab === 'terminal' && (
                     <div className="absolute inset-0 p-4 overflow-auto custom-scrollbar">
-                        <div className="text-zinc-500 mb-2">SentryAI Terminal v2.0.4 initialized...</div>
-                        <div className="text-green-400">$ connecting to local-worker... success</div>
-                        <div className="text-green-400">$ listening for events...</div>
-                        <div className="mt-2 text-zinc-300">
-                            # Waiting for mission parameters...
-                            <span className="animate-pulse">_</span>
-                        </div>
+                        {activeTaskId ? (
+                            <LogStream taskId={activeTaskId} />
+                        ) : (
+                            <div className="text-zinc-500 mb-2">SentryAI Terminal v2.0.4 initialized... waiting for mission.</div>
+                        )}
                     </div>
                 )}
 

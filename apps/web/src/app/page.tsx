@@ -13,6 +13,12 @@ import ActiveOperation from '@/components/ActiveOperation';
 import { useTaskStore } from '@/stores/useTaskStore';
 
 function OperationsPage() {
+    const { activeTaskId } = useTaskStore();
+
+    if (activeTaskId) {
+        return <ActiveOperation taskId={activeTaskId} />;
+    }
+
     return (
         <div className="flex flex-col h-full p-6">
             <div className="mb-6">
@@ -94,6 +100,8 @@ function AgentsPage() {
 }
 
 function ConsolePage() {
+    const { activeTaskId } = useTaskStore();
+
     return (
         <div className="flex flex-col h-full p-6">
             <div className="mb-4">
@@ -108,15 +116,38 @@ function ConsolePage() {
                     </div>
                 </div>
                 <div className="flex-1 p-4 font-mono text-sm text-zinc-400 overflow-y-auto custom-scrollbar">
-                    <div className="text-green-400">[SentryAI] System initialized</div>
-                    <div className="text-zinc-500">[INFO] Waiting for commands...</div>
-                    <div className="text-zinc-500">[INFO] Connected to local worker</div>
-                    <div className="mt-2">
-                        <span className="text-purple-400">$</span>
-                        <span className="ml-2 animate-pulse">_</span>
-                    </div>
+                    {activeTaskId ? (
+                        <LogStream taskId={activeTaskId} />
+                    ) : (
+                        <div className="text-zinc-600 italic">No active session connected...</div>
+                    )}
                 </div>
             </div>
+        </div>
+    );
+}
+
+function LogStream({ taskId }: { taskId: string }) {
+    const { tasks } = useTaskStore();
+    const task = tasks.find(t => t.id === taskId);
+
+    if (!task) return null;
+
+    return (
+        <div className="space-y-1">
+            <div className="text-green-400">[SentryAI] Session {taskId} initialized</div>
+            {task.logs.map((log, i) => (
+                <div key={i} className="text-zinc-300">
+                    <span className="text-purple-500 mr-2">$</span>
+                    {log}
+                </div>
+            ))}
+            {task.status === 'running' && (
+                <div className="mt-2">
+                    <span className="text-purple-400">$</span>
+                    <span className="ml-2 animate-pulse">_</span>
+                </div>
+            )}
         </div>
     );
 }

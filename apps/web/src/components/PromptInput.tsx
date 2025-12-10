@@ -8,23 +8,13 @@ export default function PromptInput() {
     const [isFocused, setIsFocused] = useState(false);
     const [agentMenuOpen, setAgentMenuOpen] = useState(false);
 
-    const { omnibarPosition, setOmnibarPosition, addTask } = useTaskStore();
+    const { omnibarPosition, setOmnibarPosition, startMission } = useTaskStore();
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!prompt.trim()) return;
 
-        // Optimistic Update: Transition to top
-        setOmnibarPosition('top');
-
-        // Add initial "Thinking" task
-        addTask({
-            id: Date.now().toString(),
-            title: "Analyzing objective parameters...",
-            status: "running",
-            logs: [],
-            startTime: Date.now()
-        });
-
+        // Optimistic Update handled in store
+        await startMission(prompt);
         setPrompt("");
     };
 
