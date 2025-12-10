@@ -1,13 +1,15 @@
-FROM python:3.11-slim
+FROM golang:1.24-alpine AS builder
 
+WORKDIR /src
+COPY go.work .
+COPY packages ./packages
+COPY apps ./apps
+
+WORKDIR /src/apps/api
+RUN go build -o /bin/api .
+
+FROM alpine:latest
 WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-# Expose port (handled by docker-compose, but good practice)
+COPY --from=builder /bin/api .
 EXPOSE 8000
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./api"]

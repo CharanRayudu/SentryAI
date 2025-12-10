@@ -1,13 +1,17 @@
-FROM python:3.11-slim
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /src
+COPY go.work .
+COPY packages ./packages
+COPY apps ./apps
+
+WORKDIR /src/apps/worker
+RUN go build -o /bin/worker .
+
+FROM alpine:latest
+# Install Docker CLI to support Docker-in-Docker or sibling docker access (though Go SDK uses socket directly, CLI is useful for debugging)
+RUN apk add --no-cache docker-cli
 
 WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Install standard security tools (nmap, etc would go here in real build)
-# RUN apt-get update && apt-get install -y nmap
-
-COPY . .
-
-CMD ["python", "main.py"]
+COPY --from=builder /bin/worker .
+CMD ["./worker"]

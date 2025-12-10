@@ -66,7 +66,7 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
 
     return (
-        <aside className="w-64 h-screen flex flex-col bg-[#0a0a0a] border-r border-white/[0.06]">
+        <aside className="w-[260px] h-screen flex flex-col bg-surface-900 border-r border-border-subtle">
             {/* Logo */}
             <div className="p-4 border-b border-white/[0.06]">
                 <div className="flex items-center gap-3">
@@ -141,26 +141,33 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
 
             {/* Projects */}
             <div className="flex-1 overflow-hidden flex flex-col">
-                <button
-                    onClick={() => setProjectsExpanded(!projectsExpanded)}
-                    className="flex items-center justify-between px-4 py-2 text-sm hover:bg-white/[0.02] transition-colors"
+                <div
+                    className="flex items-center justify-between px-4 py-2 text-sm hover:bg-white/[0.02] transition-colors cursor-pointer"
                 >
-                    <span className="text-[10px] uppercase tracking-wider text-zinc-600 font-semibold">
+                    <span 
+                        onClick={() => setProjectsExpanded(!projectsExpanded)}
+                        className="text-[10px] uppercase tracking-wider text-zinc-600 font-semibold cursor-pointer flex-1"
+                    >
                         Projects
                     </span>
                     <div className="flex items-center gap-1">
-                        <button 
+                        <button
                             className="p-1 hover:bg-white/[0.05] rounded"
                             onClick={(e) => { e.stopPropagation(); }}
                         >
                             <Plus size={14} className="text-zinc-500" />
                         </button>
-                        <ChevronDown 
-                            size={14} 
-                            className={`text-zinc-500 transition-transform ${projectsExpanded ? '' : '-rotate-90'}`}
-                        />
+                        <span 
+                            onClick={() => setProjectsExpanded(!projectsExpanded)}
+                            className="cursor-pointer"
+                        >
+                            <ChevronDown
+                                size={14}
+                                className={`text-zinc-500 transition-transform ${projectsExpanded ? '' : '-rotate-90'}`}
+                            />
+                        </span>
                     </div>
-                </button>
+                </div>
 
                 <AnimatePresence>
                     {projectsExpanded && (
@@ -175,10 +182,9 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
                                     key={project.id}
                                     className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/[0.03] transition-colors group"
                                 >
-                                    <div className={`w-2 h-2 rounded-full ${
-                                        project.status === 'active' ? 'bg-green-500' :
-                                        project.status === 'pending' ? 'bg-amber-500' : 'bg-zinc-600'
-                                    }`} />
+                                    <div className={`w-2 h-2 rounded-full ${project.status === 'active' ? 'bg-green-500' :
+                                            project.status === 'pending' ? 'bg-amber-500' : 'bg-zinc-600'
+                                        }`} />
                                     <span className="flex-1 text-left text-sm text-zinc-400 group-hover:text-zinc-200 truncate">
                                         {project.name}
                                     </span>
@@ -238,4 +244,3 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
         </aside>
     );
 }
-

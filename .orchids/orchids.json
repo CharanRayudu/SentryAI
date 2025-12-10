@@ -1,0 +1,7 @@
+{
+  "projectId": "3b48d7fc-c83e-4cf3-bcee-93f0e4d132d5",
+  "createdAt": 1765385496324,
+  "startupCommands": [
+    "cd apps/web; npm install; npm run dev"
+  ]
+}
