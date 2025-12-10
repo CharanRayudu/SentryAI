@@ -89,6 +89,18 @@ export function useAgentSocket(url: string = 'ws://localhost:8000/api/v1/ws/miss
             console.warn('Socket not connected');
         }
     }, []);
+
+    const stopMission = useCallback((missionId?: string, runId?: string) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: 'client:stop',
+                mission_id: missionId,
+                run_id: runId
+            }));
+        } else {
+            console.warn('Socket not connected');
+        }
+    }, []);
     
     const reconnect = useCallback(() => {
         reconnectAttemptsRef.current = 0;
@@ -99,5 +111,5 @@ export function useAgentSocket(url: string = 'ws://localhost:8000/api/v1/ws/miss
         socketRef.current?.close();
     }, []);
 
-    return { isConnected, lastMessage, sendMessage, connectionError, reconnect };
+    return { isConnected, lastMessage, sendMessage, stopMission, connectionError, reconnect };
 }

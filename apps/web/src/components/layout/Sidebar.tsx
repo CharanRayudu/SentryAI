@@ -244,3 +244,6 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
         </aside>
     );
 }
+
+
+

@@ -40,7 +40,7 @@ def get_llm(temperature: float = 0.2, model: str = None):
             "This is a safety feature to prevent accidental data leakage to other providers."
         )
     
-    model = model or os.getenv("NVIDIA_MODEL", "mistralai/mixtral-8x22b-instruct-v0.1")
+    model = model or os.getenv("NVIDIA_MODEL", "mistralai/mistral-large-3-675b-instruct-2512")
     
     return ChatNVIDIA(
         model=model,

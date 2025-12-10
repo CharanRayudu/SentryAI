@@ -14,8 +14,10 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
     const [input, setInput] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [lastMessage, setLastMessage] = useState<string | null>(null);
+    const [activeMissionId, setActiveMissionId] = useState<string | null>(null);
+    const [activeRunId, setActiveRunId] = useState<string | null>(null);
     
-    const { isConnected, sendMessage, connectionError, lastMessage: wsMessage } = useAgentSocket();
+    const { isConnected, sendMessage, stopMission, connectionError, lastMessage: wsMessage } = useAgentSocket();
 
     // Handle WebSocket messages
     useEffect(() => {
@@ -36,7 +38,15 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
                 setIsSubmitting(false);
             } else if (messageType === 'server:job_status') {
                 setLastMessage(`Mission ${wsMessage.status || 'started'}`);
+                if (wsMessage.mission_id) {
+                    setActiveMissionId(wsMessage.mission_id);
+                }
+                if (wsMessage.run_id) {
+                    setActiveRunId(wsMessage.run_id);
+                }
                 setIsSubmitting(false);
+            } else if (messageType === 'server:job_log') {
+                setLastMessage(wsMessage.log || 'Processing...');
             }
         }
     }, [wsMessage, onViewChange]);
@@ -53,6 +63,8 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
 
         setIsSubmitting(true);
         setLastMessage('Sending mission objective...');
+        setActiveMissionId(null);
+        setActiveRunId(null);
 
         // Extract target from message for callback
         const targetMatch = message.match(/(?:scan|audit|test|check)\s+([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
@@ -71,6 +83,12 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
             onMissionStart(target);
         }
     }, [isConnected, sendMessage, onMissionStart]);
+
+    const handleStop = useCallback(() => {
+        stopMission(activeMissionId ?? undefined, activeRunId ?? undefined);
+        setIsSubmitting(false);
+        setLastMessage('Stopping mission...');
+    }, [stopMission, activeMissionId, activeRunId]);
 
     const handleQuickAction = useCallback((action: string) => {
         const messages: Record<string, string> = {
@@ -170,22 +188,32 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
                             disabled={isSubmitting || !isConnected}
                             className="flex-1 bg-transparent border-none text-lg text-white placeholder-zinc-600 focus:ring-0 focus:outline-none h-12 neo-input disabled:opacity-50 disabled:cursor-not-allowed"
                         />
-                        <button
-                            onClick={() => handleSubmit(input)}
-                            disabled={isSubmitting || !isConnected || !input.trim()}
-                            className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors ml-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/10"
-                        >
-                            {isSubmitting ? (
-                                <motion.div
-                                    animate={{ rotate: 360 }}
-                                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                >
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handleSubmit(input)}
+                                disabled={isSubmitting || !isConnected || !input.trim()}
+                                className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/10"
+                            >
+                                {isSubmitting ? (
+                                    <motion.div
+                                        animate={{ rotate: 360 }}
+                                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                    >
+                                        <ArrowRight size={20} />
+                                    </motion.div>
+                                ) : (
                                     <ArrowRight size={20} />
-                                </motion.div>
-                            ) : (
-                                <ArrowRight size={20} />
-                            )}
-                        </button>
+                                )}
+                            </button>
+                            <button
+                                onClick={handleStop}
+                                disabled={!isConnected || !activeMissionId}
+                                className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Stop current mission"
+                            >
+                                Stop
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -232,5 +260,3 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
         </div>
     );
 }
-
-

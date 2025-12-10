@@ -210,7 +210,7 @@ class Agent(Base):
     
     # Configuration
     system_prompt = Column(Text)
-    model = Column(String(100), default="mistralai/mixtral-8x22b-instruct-v0.1")
+    model = Column(String(100), default="mistralai/mistral-large-3-675b-instruct-2512")
     temperature = Column(String(10), default="0.2")
     
     # Tool access
