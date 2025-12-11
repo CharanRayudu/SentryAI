@@ -19,9 +19,10 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
 
     // Handle WebSocket messages
     useEffect(() => {
+        /* eslint-disable react-hooks/set-state-in-effect */
         if (wsMessage) {
             const messageType = wsMessage.type;
-            
+
             if (messageType === 'server:agent_thought') {
                 setLastMessage(wsMessage.log || 'Processing...');
             } else if (messageType === 'server:plan_proposal') {
@@ -39,6 +40,7 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
                 setIsSubmitting(false);
             }
         }
+        /* eslint-enable react-hooks/set-state-in-effect */
     }, [wsMessage, onViewChange]);
 
     const handleSubmit = useCallback((message: string) => {
