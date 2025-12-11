@@ -31,38 +31,48 @@ export default function WorkspacePanel() {
     const { activeTaskId } = useTaskStore();
 
     return (
-        <div className="flex-grow flex flex-col bg-surface-900 border-t border-border-subtle mt-4 min-h-[300px]">
+        <div className="flex-grow flex flex-col mt-6 w-full max-w-5xl mx-auto min-h-[320px] glass-card border border-white/10">
             {/* Toolbar */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-border-subtle bg-surface-950/50">
-                <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] bg-white/[0.02]">
+                <div className="flex items-center gap-2">
                     <button
                         onClick={() => setActiveTab('terminal')}
-                        className={`px-3 py-1.5 rounded-t-md text-xs font-medium flex items-center gap-2 border-t-2 transition-colors ${activeTab === 'terminal' ? 'border-purple-500 bg-surface-900 text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                        className={`pill-tab ${activeTab === 'terminal' ? 'active' : ''}`}
                     >
-                        <Terminal size={12} />
-                        CONSOLE
+                        <div className="flex items-center gap-1.5 text-sm">
+                            <Terminal size={14} />
+                            Console
+                        </div>
                     </button>
                     <button
                         onClick={() => setActiveTab('report')}
-                        className={`px-3 py-1.5 rounded-t-md text-xs font-medium flex items-center gap-2 border-t-2 transition-colors ${activeTab === 'report' ? 'border-purple-500 bg-surface-900 text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                        className={`pill-tab ${activeTab === 'report' ? 'active' : ''}`}
                     >
-                        <FileText size={12} />
-                        REPORT
+                        <div className="flex items-center gap-1.5 text-sm">
+                            <FileText size={14} />
+                            Report
+                        </div>
                     </button>
                     <button
                         onClick={() => setActiveTab('diff')}
-                        className={`px-3 py-1.5 rounded-t-md text-xs font-medium flex items-center gap-2 border-t-2 transition-colors ${activeTab === 'diff' ? 'border-purple-500 bg-surface-900 text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                        className={`pill-tab ${activeTab === 'diff' ? 'active' : ''}`}
                     >
-                        <Code2 size={12} />
-                        DIFF
+                        <div className="flex items-center gap-1.5 text-sm">
+                            <Code2 size={14} />
+                            Diff
+                        </div>
                     </button>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <button className="p-1.5 text-zinc-500 hover:text-white rounded hover:bg-white/5">
+                <div className="flex items-center gap-2 text-xs text-zinc-500">
+                    <span className="stat-pill">
+                        <span className="w-2 h-2 rounded-full bg-green-400 inline-flex" />
+                        Live
+                    </span>
+                    <button className="toolbar-btn">
                         <Maximize2 size={14} />
                     </button>
-                    <button className="p-1.5 text-zinc-500 hover:text-white rounded hover:bg-white/5">
+                    <button className="toolbar-btn">
                         <MoreHorizontal size={14} />
                     </button>
                 </div>
@@ -71,7 +81,7 @@ export default function WorkspacePanel() {
             {/* Content Area */}
             <div className="flex-1 relative font-mono text-sm overflow-hidden">
                 {activeTab === 'terminal' && (
-                    <div className="absolute inset-0 p-4 overflow-auto custom-scrollbar">
+                    <div className="absolute inset-0 p-5 overflow-auto custom-scrollbar bg-gradient-to-b from-white/[0.01] to-transparent">
                         {activeTaskId ? (
                             <LogStream taskId={activeTaskId} />
                         ) : (

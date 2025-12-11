@@ -15,11 +15,11 @@ The system follows a **Microservices Architecture** orchestrated by Temporal.io 
 *   **Provider:** NVIDIA NIM (NVIDIA Cloud).
 *   **Models:** Mistral Large, Llama 3 70B (via LangChain).
 *   **Privacy:** **Strictly Non-OpenAI**. The system is hardcoded to fail if NVIDIA keys are missing to prevent data leakage.
-*   **Logic:** `ai_engine.py` generates execution plans, converting natural language (e.g., "Check for IDOR on billing") into structured tool commands.
+*   **Logic:** Go-based cognitive engine (`cognitive/engine.go`) generates execution plans, converting natural language (e.g., "Check for IDOR on billing") into structured tool commands.
 
 ### **The "Body" (Execution Plane)**
 *   **Orchestrator:** **Temporal.io**. Manages long-running workflows, retries on failure, and handles async task parallelism.
-*   **Worker Node:** Python-based generic worker.
+*   **Worker Node:** Go-based Temporal worker.
 *   **Sandboxing:** **Docker-in-Docker (DinD)**. Every security tool (Nuclei, Nmap, Subfinder) runs in an ephemeral, isolated container. This prevents tool conflicts and protects the host system.
 *   **Scheduling:** Native Temporal Schedules for CRON-based automated security scans.
 
@@ -149,7 +149,7 @@ Before ANY LLM output is executed, it passes through validation:
 4. ✅ Argument Type Check (matches schema?)
 5. ✅ Safety Pattern Check (no `rm -rf`, etc.)
 
-*   **Location:** `apps/worker/ai_engine.py`
+*   **Location:** `apps/worker/cognitive/engine.go`
 
 ### **Scope Enforcement (The Kill Switch)**
 Prevents agents from scanning unauthorized targets.
@@ -200,9 +200,8 @@ Complete data isolation between users/organizations.
 ```
 Sentry/
 ├── apps/
-│   ├── api/                    # FastAPI Gateway (The Interface)
-│   │   └── app/
-│   │       ├── api/v1/
+│   ├── api/                    # Go API Gateway (The Interface)
+│   │   └── main.go
 │   │       │   ├── chat.py           # WebSocket Mission Control
 │   │       │   ├── schedules.py      # CRON Scheduling API
 │   │       │   ├── integrations.py   # External Integrations API
@@ -236,28 +235,14 @@ Sentry/
 │   │       └── providers/
 │   │           └── WebSocketProvider.tsx
 │   └── worker/                 # Temporal Worker (The Executioner)
-│       ├── ai_engine.py        # NVIDIA LLM Logic
-│       ├── activities.py       # Docker Tool Wrappers
-│       ├── notifications.py    # Slack/Jira/Linear Dispatch
+│       ├── main.go             # Worker entry point
 │       ├── cognitive/          # Agent Brain
-│       │   ├── system_prompts.py   # Structured Prompting
-│       │   ├── scope_enforcer.py   # Target Safety
-│       │   └── budgets.py          # Loop Prevention
-│       ├── evals/              # Quality Assurance
-│       │   ├── evaluation_pipeline.py
-│       │   └── dojo/           # The Dojo
-│       │       ├── docker-compose.arena.yml
-│       │       ├── run_evals.py
-│       │       ├── judge.py    # LLM-as-a-Judge
-│       │       ├── scenarios/  # Golden Scenarios
-│       │       │   ├── sqli_scenarios.py
-│       │       │   ├── xss_scenarios.py
-│       │       │   ├── auth_scenarios.py
-│       │       │   ├── scope_scenarios.py
-│       │       │   └── loop_scenarios.py
-│       │       └── tests/      # pytest tests
-│       └── tools/              # Tool Management
-│           └── auto_documenter.py  # Dynamic Tool Teaching
+│       │   ├── engine.go       # NVIDIA LLM Logic
+│       │   └── system_prompt.md # Structured Prompting
+│       ├── activities/         # Docker Tool Wrappers
+│       │   └── activities.go
+│       └── workflows/          # Temporal Workflows
+│           └── scan.go
 ├── deploy/
 │   └── docker-compose.yml      # The Infrastructure Blueprint
 ├── packages/                   # Shared types and utilities
@@ -372,24 +357,8 @@ docker compose -f docker-compose.arena.yml up -d
 
 ### Run Evaluations
 ```bash
-# Run all scenarios
-python -m evals.dojo.run_evals
-
-# Run by category
-python -m evals.dojo.run_evals --category sqli
-python -m evals.dojo.run_evals --category loop  # Loop prevention tests
-
-# Run specific scenario
-python -m evals.dojo.run_evals --scenario sqli-dvwa-login
-
-# Regression test (compare prompt versions)
-python -m evals.dojo.run_evals --regression v1.0 v1.1
-
-# CI/CD mode (fail on low score)
-python -m evals.dojo.run_evals --min-score 80 --exit-on-fail
-
-# Generate report
-python -m evals.dojo.run_evals --report json --output results.json
+# Note: Evaluation framework removed with Python codebase migration
+# Future Go-based evaluation framework to be implemented
 ```
 
 ### Using pytest
@@ -437,8 +406,8 @@ The Dojo uses an LLM (GPT-4 or Claude) to evaluate agent performance:
 Before deploying a new prompt version:
 
 ```bash
-# This will block deployment if score drops >10%
-python -m evals.dojo.run_evals --regression v1.0 v1.1 --exit-on-fail
+# Note: Evaluation framework removed with Python codebase migration
+# Future Go-based evaluation framework to be implemented
 ```
 
 Output:

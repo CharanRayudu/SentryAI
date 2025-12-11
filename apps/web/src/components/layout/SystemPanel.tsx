@@ -5,7 +5,6 @@ import {
     Activity,
     Terminal,
     Database,
-    Settings,
     Power,
     Cpu,
     Network

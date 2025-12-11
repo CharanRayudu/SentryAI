@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Wifi, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Wifi } from 'lucide-react';
 
 interface Log {
     id: string;
@@ -20,7 +20,7 @@ const MOCK_LOGS: Log[] = [
 
 export default function IntelPanel() {
     const scrollRef = useRef<HTMLDivElement>(null);
-    const [logs, setLogs] = useState<Log[]>(MOCK_LOGS);
+    const [logs] = useState<Log[]>(MOCK_LOGS);
 
     // Auto-scroll to bottom of logs
     useEffect(() => {

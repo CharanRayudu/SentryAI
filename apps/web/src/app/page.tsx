@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAgentSocket } from '@/hooks/useAgentSocket';
 import { AppLayout } from '@/components/layout/AppLayout';
 import Sidebar from '@/components/layout/Sidebar';
 import PromptInput from '@/components/PromptInput';
@@ -176,7 +177,38 @@ function FilesPage() {
 
 export default function Home() {
     const [activeView, setActiveView] = useState('new');
-    const { omnibarPosition } = useTaskStore();
+    const { omnibarPosition, updateTask } = useTaskStore();
+    const { lastMessage } = useAgentSocket();
+
+    // Handle WebSocket messages globally
+    useEffect(() => {
+        if (lastMessage) {
+            if (lastMessage.type === 'server:plan_proposal') {
+                const plan = lastMessage as any; // Cast to access payload
+                console.log("Received plan proposal:", plan);
+
+                // Find task by mission_id or active task
+                // Since the message usually comes after start, we assume we want to update the relevant task.
+                // The task ID in store matches mission_id.
+                if (plan.mission_id || plan.plan_id) {
+                    const missionId = plan.mission_id || plan.plan_id;
+                    updateTask(missionId, {
+                        status: 'planning',
+                        plan: {
+                            thought_process: plan.thought_process,
+                            steps: plan.steps
+                        }
+                    });
+                    setActiveView('operations');
+                }
+            } else if (lastMessage.type === 'server:job_status') {
+                // Handle other status updates if needed
+                if (lastMessage.status === 'running' && lastMessage.mission_id) {
+                    updateTask(lastMessage.mission_id as string, { status: 'running' });
+                }
+            }
+        }
+    }, [lastMessage, updateTask]);
 
     const renderContent = () => {
         switch (activeView) {
@@ -199,23 +231,73 @@ export default function Home() {
             case 'new':
             default:
                 return (
-                    <div className={`
-                        w-full h-full flex flex-col p-6 transition-all duration-500
-                        ${omnibarPosition === 'center' ? 'justify-center items-center' : 'justify-start'}
-                    `}>
-                        <div className={`
-                            w-full max-w-4xl mx-auto flex flex-col transition-all duration-500
-                            ${omnibarPosition === 'center' ? 'flex-grow-0' : 'flex-grow h-full'}
-                        `}>
+                    <div className={`w-full h-full flex flex-col transition-all duration-500 ${omnibarPosition === 'center' ? 'justify-center items-center' : 'justify-start'} py-8`}>
+                        <div className="relative w-full max-w-6xl mx-auto flex flex-col gap-6">
+                            <div className="absolute inset-0 -z-10 pointer-events-none">
+                                <div className="absolute -top-32 right-10 w-72 h-72 bg-primary-glow blur-[160px] opacity-30" />
+                                <div className="absolute top-10 left-0 w-64 h-64 bg-blue-500/30 blur-[150px] opacity-30" />
+                            </div>
+
+                            <div className={`flex flex-col gap-2 ${omnibarPosition === 'center' ? 'text-center items-center' : 'text-left'}`}>
+                                <p className="text-xs uppercase tracking-[0.24em] text-zinc-600 font-semibold">Matrix API Security</p>
+                                <h1 className="text-4xl font-semibold text-white leading-tight">Describe the task you want me to execute.</h1>
+                                <p className="text-zinc-500 max-w-2xl">Delegate research, reconnaissance, and vulnerability discovery to the autonomous agent. I will track artifacts, connections, and variables as the mission unfolds.</p>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                    <span className="stat-pill">Tasks · 11</span>
+                                    <span className="stat-pill">Files · 7</span>
+                                    <span className="stat-pill">Connections · 4</span>
+                                    <span className="stat-pill">Variables · 8</span>
+                                </div>
+                            </div>
+
                             <PromptInput />
 
-                            {omnibarPosition === 'top' && (
-                                <div className="flex-grow flex flex-col overflow-hidden">
-                                    <div className="flex-shrink-0 max-h-[40%] overflow-y-auto custom-scrollbar pr-2">
-                                        <TaskExecutionList />
+                            <div className="glass-card border border-white/10 rounded-2xl overflow-hidden">
+                                <div className="px-5 py-4 border-b border-white/5 flex items-center gap-3 text-sm text-white">
+                                    <div className="w-8 h-8 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center">
+                                        <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="1.4">
+                                            <path d="M3 9h18M4 5h16M6 13h12M9 17h6" strokeLinecap="round" />
+                                        </svg>
                                     </div>
-                                    <WorkspacePanel />
+                                    <div className="flex flex-col">
+                                        <span className="text-xs uppercase tracking-[0.22em] text-zinc-500">Mission Planning</span>
+                                        <span>Generating plan...</span>
+                                    </div>
                                 </div>
+                                <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-zinc-300">
+                                    {[
+                                        'Researching · api security vulnerabilities, OWASP top 10',
+                                        'Memory recall · found 4 relevant conversations',
+                                        'Knowledge search · api-endpoints.yaml, nuclei-templates.json, auth-flow-...',
+                                        'Web search · matrix corp api documentation, recent CVEs',
+                                        'Analyzing · identifying attack vectors and test scenarios',
+                                    ].map((item) => (
+                                        <div key={item} className="flex items-center gap-2 rounded-xl bg-white/[0.03] border border-white/5 px-3 py-2">
+                                            <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                            <span className="text-zinc-200">{item}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="glass-card border border-white/10 rounded-2xl overflow-hidden">
+                                <div className="flex items-center gap-2 px-5 py-3 border-b border-white/5 text-sm text-zinc-400">
+                                    {['Tasks 11', 'Files 7', 'Connections 4', 'Variables 8'].map((tab, idx) => (
+                                        <button
+                                            key={tab}
+                                            className={`pill-tab ${idx === 0 ? 'active' : ''}`}
+                                        >
+                                            {tab}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="p-4">
+                                    <TaskExecutionList />
+                                </div>
+                            </div>
+
+                            {omnibarPosition === 'top' && (
+                                <WorkspacePanel />
                             )}
                         </div>
                     </div>

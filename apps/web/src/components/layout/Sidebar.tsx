@@ -15,7 +15,6 @@ import {
     Activity,
     Calendar,
     Link2,
-    FileText,
     User,
     LogOut,
     Sparkles

@@ -6,12 +6,12 @@ import (
 	"io"
 	"strings"
 
+	"sentry/apps/worker/cognitive"
+	"sentry/packages/shared"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"go.temporal.io/sdk/activity"
-	"sentry/apps/worker/cognitive"
-	"sentry/packages/shared"
 )
 
 type Activities struct {
@@ -87,7 +87,7 @@ func (a *Activities) RunToolScan(ctx context.Context, params ScanParams) (string
 	if err != nil {
 		return "", fmt.Errorf("failed to get logs: %w", err)
 	}
-	
+
 	// Read logs
 	output, err := io.ReadAll(out)
 	if err != nil {
@@ -102,4 +102,8 @@ func (a *Activities) RunToolScan(ctx context.Context, params ScanParams) (string
 
 func (a *Activities) AIThink(ctx context.Context, goal string, history []shared.LogEntry, tools []shared.ToolDefinition) (*shared.AgentOutput, error) {
 	return a.Engine.Think(ctx, goal, history, tools)
+}
+
+func (a *Activities) GeneratePlan(ctx context.Context, goal string, tools []shared.ToolDefinition) (*shared.AgentPlan, error) {
+	return a.Engine.Plan(ctx, goal, tools)
 }

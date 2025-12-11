@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import {
     Terminal,
     Target,
@@ -6,6 +5,8 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTaskStore } from '@/stores/useTaskStore';
+import { useAgentSocket } from '@/hooks/useAgentSocket';
+import PlanApproval from './PlanApproval';
 
 interface ActiveOperationProps {
     taskId: string;
@@ -14,8 +15,29 @@ interface ActiveOperationProps {
 export default function ActiveOperation({ taskId }: ActiveOperationProps) {
     const { tasks } = useTaskStore();
     const task = tasks.find(t => t.id === taskId);
+    const { sendMessage } = useAgentSocket(); // Ensure useAgentSocket import
 
     if (!task) return null;
+
+    if (task.status === 'planning' && task.plan) {
+        return (
+            <PlanApproval
+                plan={task.plan}
+                onApprove={(approvedSteps) => {
+                    sendMessage('client:confirm_plan', {
+                        mission_id: task.id,
+                        approved_steps: approvedSteps // sending full steps or IDs
+                    });
+                    // Optimistic update
+                    useTaskStore.getState().updateTask(task.id, { status: 'running' });
+                }}
+                onCancel={() => {
+                    sendMessage('client:stop', { mission_id: task.id });
+                    useTaskStore.getState().updateTask(task.id, { status: 'failed', logs: [...task.logs, 'Mission aborted by user.'] });
+                }}
+            />
+        );
+    }
 
     const progress = task.status === 'success' ? 100 : task.status === 'running' ? 50 : 0;
     const statusText = task.status === 'running' ? 'Executing mission...' : task.status === 'success' ? 'Mission Complete' : 'Mission Failed';

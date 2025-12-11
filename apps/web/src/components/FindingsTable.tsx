@@ -1,6 +1,6 @@
 'use client';
 
-import { Shield, AlertTriangle, CheckCircle, Info, Hash } from 'lucide-react';
+import { AlertTriangle, CheckCircle } from 'lucide-react';
 
 const FINDINGS = [
     { id: 'VULN-001', type: 'SQL Injection', severity: 'critical', location: '/api/login', status: 'open' },

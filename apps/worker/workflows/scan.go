@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -39,71 +40,77 @@ func SecurityScanWorkflow(ctx workflow.Context, missionID string, goal string) (
 	addLog(fmt.Sprintf("[Mission Control] Initializing mission: %s", missionID))
 	addLog(fmt.Sprintf("[Mission Control] Goal: %s", goal))
 
-	// Initial tool definitions (static for now, can be dynamic)
+	// Initial tool definitions
 	tools := []shared.ToolDefinition{
 		{"subfinder", "Passive subdomain enumeration"},
 		{"nuclei", "Vulnerability scanning with templates"},
 		{"naabu", "Fast port scanner"},
 	}
 
-	maxSteps := 50
-	for i := 0; i < maxSteps; i++ {
-		// 1. Think
-		addLog("[Agent] Analyzing situation...")
-		var agentOutput shared.AgentOutput
-		err := workflow.ExecuteActivity(ctx, "AIThink", goal, history, tools).Get(ctx, &agentOutput)
-		if err != nil {
-			addLog(fmt.Sprintf("[Error] AI Think failed: %v", err))
-			return "", err
+	// -------------------------------------------------------------------------
+	// PHASE 1: PLANNING
+	// -------------------------------------------------------------------------
+	addLog("[Agent] Analyzing objective and generating execution plan...")
+	var plan shared.AgentPlan
+	err = workflow.ExecuteActivity(ctx, "GeneratePlan", goal, tools).Get(ctx, &plan)
+	if err != nil {
+		addLog(fmt.Sprintf("[Error] Plan generation failed: %v", err))
+		return "", err
+	}
+
+	// Log plan as JSON for API to parse
+	planJSON, _ := json.Marshal(plan)
+	addLog(fmt.Sprintf("[Plan Proposal] %s", string(planJSON)))
+	addLog("[Mission Control] Waiting for plan approval...")
+
+	// Wait for Approval Signal
+	var approvalData map[string]interface{}
+	signalChan := workflow.GetSignalChannel(ctx, "approve_plan")
+
+	// Wait INDEFINITELY for signal (or until timeout)
+	signalChan.Receive(ctx, &approvalData)
+
+	addLog("[Mission Control] Plan approved. Starting execution phase.")
+
+	// -------------------------------------------------------------------------
+	// PHASE 2: EXECUTION
+	// -------------------------------------------------------------------------
+
+	// Execute steps from the plan
+	for _, step := range plan.Steps {
+		// Logic to check if step is in approvalData (if we implement granular approval)
+		// For now, assume all steps in plan are approved or approvalData contains the modified plan.
+
+		addLog(fmt.Sprintf("[Agent] Executing Step %d: %s (%s)", step.ID, step.Tool, step.Description))
+
+		scanParams := map[string]string{
+			"tool":   step.Tool,
+			"target": goal, // Simplified: usually target is extracted from args or goal
+			"args":   step.Args,
 		}
 
-		// Log thought
+		var toolResult string
+		err = workflow.ExecuteActivity(ctx, "RunToolScan", scanParams).Get(ctx, &toolResult)
+		if err != nil {
+			toolResult = "Error executing tool: " + err.Error()
+			addLog(fmt.Sprintf("[Error] Tool execution failed: %v", err))
+		} else {
+			addLog(fmt.Sprintf("[Tool Output] %s", toolResult))
+		}
+
 		history = append(history, shared.LogEntry{
 			Timestamp: time.Now(),
 			MissionID: missionID,
-			Type:      "thought",
-			Content:   agentOutput.ThoughtProcess,
+			Type:      "tool_output",
+			Content:   toolResult,
 		})
-		addLog(fmt.Sprintf("[Agent] Thought: %s", agentOutput.ThoughtProcess))
-
-		// Check completion
-		if agentOutput.IsComplete {
-			addLog("[Mission Control] Mission successfully completed.")
-			return "Completed", nil
-		}
-
-		// 2. Act
-		if agentOutput.ToolCall != nil {
-			addLog(fmt.Sprintf("[Agent] Executing tool: %s", agentOutput.ToolCall.Name))
-			var toolResult string
-			params := agentOutput.ToolCall.Arguments
-
-			target, _ := params["target"].(string)
-			args, _ := params["args"].(string)
-
-			scanParams := map[string]string{
-				"tool":   agentOutput.ToolCall.Name,
-				"target": target,
-				"args":   args,
-			}
-
-			err = workflow.ExecuteActivity(ctx, "RunToolScan", scanParams).Get(ctx, &toolResult)
-			if err != nil {
-				toolResult = "Error executing tool: " + err.Error()
-				addLog(fmt.Sprintf("[Error] Tool execution failed: %v", err))
-			} else {
-				addLog(fmt.Sprintf("[Tool Output] %s", toolResult))
-			}
-
-			history = append(history, shared.LogEntry{
-				Timestamp: time.Now(),
-				MissionID: missionID,
-				Type:      "tool_output",
-				Content:   toolResult,
-			})
-		}
 	}
 
-	addLog("[Mission Control] Max steps reached. Aborting.")
-	return "Max steps reached", nil
+	// -------------------------------------------------------------------------
+	// PHASE 3: REVIEW (Optional ReAct Loop for follow-up)
+	// -------------------------------------------------------------------------
+	// For MVP, we just finish after plan execution.
+
+	addLog("[Mission Control] All planned steps completed.")
+	return "Completed", nil
 }

@@ -18,23 +18,23 @@ func main() {
 	if apiKey == "" {
 		log.Println("Warning: NVIDIA_API_KEY not set. AI capabilities will fail.")
 	}
-    // Using an OpenAI-compatible endpoint (like NVIDIA NIM or actual OpenAI)
-    // Defaulting to NVIDIA NIM base URL if not set, or OpenAI default
-    baseURL := os.Getenv("AI_BASE_URL") 
-    if baseURL == "" {
-        baseURL = "https://integrate.api.nvidia.com/v1" // Example NIM URL
-    }
-    model := os.Getenv("AI_MODEL") 
-    if model == "" {
-        model = "mistralai/mixtral-8x22b-instruct-v0.1"
-    }
+	// Using an OpenAI-compatible endpoint (like NVIDIA NIM or actual OpenAI)
+	// Defaulting to NVIDIA NIM base URL if not set
+	baseURL := os.Getenv("AI_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://integrate.api.nvidia.com/v1"
+	}
+	model := os.Getenv("NVIDIA_MODEL")
+	if model == "" {
+		model = "mistralai/mistral-large-3-675b-instruct-2512"
+	}
 
 	engine := cognitive.NewEngine(apiKey, baseURL, model)
 
 	// 2. Initialize Activities
 	acts, err := activities.NewActivities(engine)
 	if err != nil {
-		log.Fatalln("Unable to metadata docker client", err)
+		log.Fatalln("Unable to initialize docker client", err)
 	}
 
 	// 3. Connect to Temporal
@@ -57,6 +57,7 @@ func main() {
 	w.RegisterWorkflow(workflows.SecurityScanWorkflow)
 	w.RegisterActivity(acts.AIThink)
 	w.RegisterActivity(acts.RunToolScan)
+	w.RegisterActivity(acts.GeneratePlan)
 
 	log.Println("Worker started...")
 	err = w.Run(worker.InterruptCh())

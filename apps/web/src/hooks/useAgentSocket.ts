@@ -1,19 +1,31 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-type WebSocketMessage = {
+export type AgentMessage = {
     type: string;
-    [key: string]: any;
+    log?: string;
+    message?: string;
+    status?: string;
+    mission_id?: string;
+    run_id?: string;
+    [key: string]: unknown;
 };
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 3000;
 
-export function useAgentSocket(url: string = 'ws://localhost:8000/api/v1/ws/mission') {
+interface AgentSocketOptions {
+    url?: string;
+    onMessage?: (message: AgentMessage) => void;
+}
+
+export function useAgentSocket(options: AgentSocketOptions = {}) {
+    const { url = 'ws://localhost:8000/api/v1/ws/mission', onMessage } = options;
+
     const socketRef = useRef<WebSocket | null>(null);
     const reconnectAttemptsRef = useRef(0);
-    const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const [isConnected, setIsConnected] = useState(false);
-    const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
+    const [lastMessage, setLastMessage] = useState<AgentMessage | null>(null);
     const [connectionError, setConnectionError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -39,8 +51,9 @@ export function useAgentSocket(url: string = 'ws://localhost:8000/api/v1/ws/miss
 
                 ws.onmessage = (event) => {
                     try {
-                        const data = JSON.parse(event.data);
+                        const data: AgentMessage = JSON.parse(event.data);
                         setLastMessage(data);
+                        onMessage?.(data);
                     } catch (e) {
                         console.error('Failed to parse WebSocket message:', e);
                     }
@@ -80,9 +93,9 @@ export function useAgentSocket(url: string = 'ws://localhost:8000/api/v1/ws/miss
             }
             socketRef.current?.close();
         };
-    }, [url]);
+    }, [url, onMessage]);
 
-    const sendMessage = useCallback((type: string, payload: any) => {
+    const sendMessage = useCallback((type: string, payload: Record<string, unknown>) => {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current.send(JSON.stringify({ type, ...payload }));
         } else {

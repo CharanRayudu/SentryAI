@@ -1,10 +1,13 @@
 import { create } from 'zustand';
+import { AgentPlan } from '@/types/agent';
+import { api } from '@/lib/api';
 
 export interface Task {
     id: string;
     parentId?: string;
     title: string;
-    status: 'idle' | 'running' | 'success' | 'failed';
+    status: 'idle' | 'planning' | 'running' | 'success' | 'failed';
+    plan?: AgentPlan;
     logs: string[];
     artifacts?: { type: 'file' | 'diff'; url: string; name: string }[];
     startTime: number;
@@ -27,7 +30,9 @@ interface TaskStore {
     startMission: (prompt: string) => Promise<void>;
 }
 
-import { api } from '@/lib/api';
+type MissionStatus = {
+    status: string;
+};
 
 export const useTaskStore = create<TaskStore>((set, get) => ({
     tasks: [],
@@ -87,10 +92,16 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             // 4. Start Polling (Simple implementation)
             const pollInterval = setInterval(async () => {
                 try {
-                    const status = await api.getMissionStatus(data.mission_id);
-                    get().updateTask(data.mission_id, { status: status.status as any });
+                    const status = await api.getMissionStatus(data.mission_id) as MissionStatus;
+                    const normalizedStatus = status.status as Task['status'];
 
-                    if (status.status === 'success' || status.status === 'failed') {
+                    const currentTask = get().tasks.find(t => t.id === data.mission_id);
+                    // Prevent overwriting 'planning' state with 'running' from polling
+                    if (!(currentTask?.status === 'planning' && normalizedStatus === 'running')) {
+                        get().updateTask(data.mission_id, { status: normalizedStatus });
+                    }
+
+                    if (normalizedStatus === 'success' || normalizedStatus === 'failed') {
                         clearInterval(pollInterval);
                     }
                 } catch (e) {

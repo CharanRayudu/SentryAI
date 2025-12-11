@@ -1,24 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
     Webhook,
-    Slack,
     Plus,
-    Check,
-    X,
-    ExternalLink,
     Settings,
     Trash2,
     TestTube,
-    Zap,
     Bell,
-    Shield,
     ChevronRight,
     Loader2,
-    CheckCircle2,
-    AlertCircle,
-    Copy
+    CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -36,7 +28,7 @@ type IntegrationType = {
     id: string;
     name: string;
     description: string;
-    icon: React.ReactNode;
+    icon: ReactNode;
     color: string;
     fields: { key: string; label: string; placeholder: string; type: 'text' | 'password' | 'url' }[];
     events: string[];

@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 	"time"
+
+	"strings"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -12,8 +16,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/websocket/v2"
 	"go.temporal.io/sdk/client"
-	"strings"
-	"sync"
 )
 
 func main() {
@@ -233,23 +235,43 @@ func missionWebSocketHandler(tc client.Client) fiber.Handler {
 				currentMissionID = missionID
 				currentRunID = runID
 
-				// Provide a simple plan preview for the Command Center UI.
-				send(map[string]interface{}{
-					"type":    "server:plan_proposal",
-					"plan_id": missionID,
-					"intent":  prompt,
-					"steps": []map[string]interface{}{
-						{"id": 1, "tool": "subfinder", "args": "-d <target>", "enabled": true},
-						{"id": 2, "tool": "naabu", "args": "-host <target>", "enabled": true},
-						{"id": 3, "tool": "nuclei", "args": "-u <target>", "enabled": true},
-					},
-				})
-
 				streamWG.Add(1)
 				go func() {
 					defer streamWG.Done()
 					streamMissionLogs(missionCtx, tc, missionID, out)
 				}()
+
+			case "client:confirm_plan":
+				missionID, _ := incoming["mission_id"].(string)
+				runID, _ := incoming["run_id"].(string)
+				// approvedSteps might be a list of IDs or a boolean "approved" flag,
+				// depending on how granular we want it. For now, we'll pass the whole map payload as signal.
+
+				if missionID == "" {
+					missionID = currentMissionID
+				}
+				if runID == "" {
+					runID = currentRunID
+				}
+
+				if missionID == "" {
+					send(map[string]interface{}{"type": "server:error", "message": "no active mission to confirm"})
+					continue
+				}
+
+				// Assuming incoming["approved_steps"] contains the list of approved steps or IDs
+				if err := signalMissionWorkflow(tc, missionID, runID, "approve_plan", incoming); err != nil {
+					send(map[string]interface{}{"type": "server:error", "message": "failed to signal plan approval: " + err.Error()})
+					continue
+				}
+
+				send(map[string]interface{}{
+					"type":       "server:job_status",
+					"mission_id": missionID,
+					"status":     "running", // Or "plan_approved"
+					"message":    "Plan approved, resuming execution.",
+				})
+
 			case "client:stop":
 				missionID, _ := incoming["mission_id"].(string)
 				runID, _ := incoming["run_id"].(string)
@@ -372,15 +394,32 @@ func streamMissionLogs(ctx context.Context, tc client.Client, missionID string, 
 				newLogs := logs[lastCount:]
 				for _, line := range newLogs {
 					eventType := "server:job_log"
+					var payload map[string]interface{}
+
 					if strings.Contains(line, "[Agent]") {
 						eventType = "server:agent_thought"
+					} else if strings.Contains(line, "[Plan Proposal]") {
+						eventType = "server:plan_proposal"
+						// Parse the JSON content after the tag
+						jsonPart := strings.TrimSpace(strings.SplitN(line, "[Plan Proposal]", 2)[1])
+						var planData map[string]interface{}
+						if err := json.Unmarshal([]byte(jsonPart), &planData); err == nil {
+							payload = planData
+							payload["type"] = eventType
+						}
 					}
+
 					select {
-					case out <- map[string]interface{}{
-						"type":       eventType,
-						"mission_id": missionID,
-						"log":        line,
-					}:
+					case out <- func() map[string]interface{} {
+						if payload != nil {
+							return payload
+						}
+						return map[string]interface{}{
+							"type":       eventType,
+							"mission_id": missionID,
+							"log":        line,
+						}
+					}():
 					case <-ctx.Done():
 						return
 					}
@@ -400,4 +439,10 @@ func streamMissionLogs(ctx context.Context, tc client.Client, missionID string, 
 			}
 		}
 	}
+}
+
+func signalMissionWorkflow(tc client.Client, missionID string, runID string, signalName string, arg interface{}) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return tc.SignalWorkflow(ctx, missionID, runID, signalName, arg)
 }

@@ -7,13 +7,10 @@ import {
     Clock,
     Plus,
     Play,
-    Pause,
     Trash2,
     Edit2,
     Check,
     X,
-    ChevronRight,
-    Zap,
     AlertCircle,
     RefreshCw
 } from 'lucide-react';
