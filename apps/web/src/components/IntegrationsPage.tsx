@@ -98,29 +98,8 @@ const INTEGRATION_TYPES: IntegrationType[] = [
     }
 ];
 
-const MOCK_INTEGRATIONS: Integration[] = [
-    {
-        id: '1',
-        type: 'slack',
-        name: 'Security Alerts Channel',
-        config: { webhook_url: 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXX', channel: '#security-alerts' },
-        enabled: true,
-        lastUsed: '2024-12-08T14:30:00Z',
-        events: ['scan_complete', 'vulnerability_found']
-    },
-    {
-        id: '2',
-        type: 'jira',
-        name: 'Security Project',
-        config: { base_url: 'https://acme.atlassian.net', email: 'security@acme.com', project_key: 'SEC' },
-        enabled: true,
-        lastUsed: '2024-12-07T10:15:00Z',
-        events: ['vulnerability_found']
-    }
-];
-
 export default function IntegrationsPage() {
-    const [integrations, setIntegrations] = useState<Integration[]>(MOCK_INTEGRATIONS);
+    const [integrations, setIntegrations] = useState<Integration[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [selectedType, setSelectedType] = useState<IntegrationType | null>(null);
     const [testingId, setTestingId] = useState<string | null>(null);
@@ -171,6 +150,21 @@ export default function IntegrationsPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-8">
+
+                {integrations.length === 0 && (
+                    <div className="mb-8 p-6 border border-[#222] rounded-xl bg-[#0b0b0b] flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-semibold text-white">No integrations connected</h3>
+                            <p className="text-sm text-gray-500 mt-1">Use the catalog below to connect notifications or ticketing.</p>
+                        </div>
+                        <button
+                            onClick={() => setShowAddModal(true)}
+                            className="px-4 py-2 bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+                        >
+                            Add Integration
+                        </button>
+                    </div>
+                )}
 
                 {/* Active Integrations */}
                 {integrations.length > 0 && (

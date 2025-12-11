@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Shield, AlertTriangle, Terminal, Play, X } from 'lucide-react';
+import { Check, Shield, AlertTriangle, Terminal, Play } from 'lucide-react';
 
 interface PlanStep {
     id: number;

@@ -28,45 +28,6 @@ interface Schedule {
     autoPilot: boolean;
 }
 
-const SAMPLE_SCHEDULES: Schedule[] = [
-    {
-        id: '1',
-        name: 'Weekly Vulnerability Scan',
-        target: 'api.example.com',
-        cron: '0 9 * * 1',
-        cronReadable: 'Every Monday at 9:00 AM',
-        enabled: true,
-        lastRun: '2024-01-08T09:00:00Z',
-        nextRun: '2024-01-15T09:00:00Z',
-        status: 'success',
-        autoPilot: true
-    },
-    {
-        id: '2',
-        name: 'Daily Recon',
-        target: '*.example.com',
-        cron: '0 6 * * *',
-        cronReadable: 'Every day at 6:00 AM',
-        enabled: true,
-        lastRun: '2024-01-14T06:00:00Z',
-        nextRun: '2024-01-15T06:00:00Z',
-        status: 'running',
-        autoPilot: false
-    },
-    {
-        id: '3',
-        name: 'Monthly Compliance Check',
-        target: 'internal.example.com',
-        cron: '0 0 1 * *',
-        cronReadable: 'First day of every month',
-        enabled: false,
-        lastRun: '2024-01-01T00:00:00Z',
-        nextRun: '2024-02-01T00:00:00Z',
-        status: 'idle',
-        autoPilot: true
-    },
-];
-
 const CRON_PRESETS = [
     { label: 'Hourly', cron: '0 * * * *', readable: 'Every hour' },
     { label: 'Daily', cron: '0 9 * * *', readable: 'Every day at 9:00 AM' },
@@ -75,15 +36,17 @@ const CRON_PRESETS = [
 ];
 
 export default function SchedulesPage() {
-    const [schedules, setSchedules] = useState<Schedule[]>(SAMPLE_SCHEDULES);
+    const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [newSchedule, setNewSchedule] = useState({
+    const blankSchedule = {
         name: '',
         target: '',
         cron: '0 9 * * 1',
         cronReadable: 'Every Monday at 9:00 AM',
         autoPilot: false
-    });
+    };
+    const [newSchedule, setNewSchedule] = useState({ ...blankSchedule });
+    const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
 
     const toggleSchedule = (id: string) => {
         setSchedules(prev => prev.map(s => 
@@ -93,24 +56,90 @@ export default function SchedulesPage() {
 
     const deleteSchedule = (id: string) => {
         setSchedules(prev => prev.filter(s => s.id !== id));
+        if (editingSchedule?.id === id) {
+            setEditingSchedule(null);
+        }
     };
 
     const createSchedule = () => {
-        const schedule: Schedule = {
-            id: Date.now().toString(),
-            name: newSchedule.name,
-            target: newSchedule.target,
-            cron: newSchedule.cron,
-            cronReadable: newSchedule.cronReadable,
-            enabled: true,
-            lastRun: null,
-            nextRun: new Date(Date.now() + 86400000).toISOString(),
-            status: 'idle',
-            autoPilot: newSchedule.autoPilot
-        };
-        setSchedules(prev => [...prev, schedule]);
+        if (editingSchedule) {
+            setSchedules(prev => prev.map((schedule) =>
+                schedule.id === editingSchedule.id
+                    ? {
+                        ...schedule,
+                        name: newSchedule.name,
+                        target: newSchedule.target,
+                        cron: newSchedule.cron,
+                        cronReadable: newSchedule.cronReadable,
+                        autoPilot: newSchedule.autoPilot
+                    }
+                    : schedule
+            ));
+        } else {
+            const schedule: Schedule = {
+                id: Date.now().toString(),
+                name: newSchedule.name,
+                target: newSchedule.target,
+                cron: newSchedule.cron,
+                cronReadable: newSchedule.cronReadable,
+                enabled: true,
+                lastRun: null,
+                nextRun: new Date(Date.now() + 86400000).toISOString(),
+                status: 'idle',
+                autoPilot: newSchedule.autoPilot
+            };
+            setSchedules(prev => [...prev, schedule]);
+        }
+
         setShowCreateModal(false);
-        setNewSchedule({ name: '', target: '', cron: '0 9 * * 1', cronReadable: 'Every Monday at 9:00 AM', autoPilot: false });
+        setEditingSchedule(null);
+        setNewSchedule({ ...blankSchedule });
+    };
+
+    const runSchedule = (id: string) => {
+        setSchedules(prev => prev.map((schedule) =>
+            schedule.id === id
+                ? {
+                    ...schedule,
+                    enabled: true,
+                    status: 'running',
+                    lastRun: new Date().toISOString(),
+                    nextRun: new Date(Date.now() + 3600000).toISOString()
+                }
+                : schedule
+        ));
+
+        setTimeout(() => {
+            setSchedules(prev => prev.map((schedule) =>
+                schedule.id === id
+                    ? { ...schedule, status: 'success' }
+                    : schedule
+            ));
+        }, 1500);
+    };
+
+    const openForEdit = (schedule: Schedule) => {
+        setEditingSchedule(schedule);
+        setShowCreateModal(true);
+        setNewSchedule({
+            name: schedule.name,
+            target: schedule.target,
+            cron: schedule.cron,
+            cronReadable: schedule.cronReadable,
+            autoPilot: schedule.autoPilot
+        });
+    };
+
+    const openCreateModal = () => {
+        setEditingSchedule(null);
+        setNewSchedule({ ...blankSchedule });
+        setShowCreateModal(true);
+    };
+
+    const closeModal = () => {
+        setShowCreateModal(false);
+        setEditingSchedule(null);
+        setNewSchedule({ ...blankSchedule });
     };
 
     const getStatusConfig = (status: Schedule['status']) => {
@@ -136,7 +165,7 @@ export default function SchedulesPage() {
                         <p className="text-sm text-zinc-500">Automate recurring security scans</p>
                     </div>
                     <button
-                        onClick={() => setShowCreateModal(true)}
+                        onClick={openCreateModal}
                         className="btn-gradient flex items-center gap-2"
                     >
                         <Plus size={16} />
@@ -206,13 +235,19 @@ export default function SchedulesPage() {
 
                                 {/* Actions */}
                                 <div className="flex items-center gap-1">
-                                    <button className="p-2 hover:bg-white/[0.05] rounded-lg text-zinc-500 hover:text-white transition-colors">
+                                    <button
+                                        onClick={() => runSchedule(schedule.id)}
+                                        className="p-2 hover:bg-white/[0.05] rounded-lg text-zinc-500 hover:text-white transition-colors"
+                                    >
                                         <Play size={14} />
                                     </button>
-                                    <button className="p-2 hover:bg-white/[0.05] rounded-lg text-zinc-500 hover:text-white transition-colors">
+                                    <button
+                                        onClick={() => openForEdit(schedule)}
+                                        className="p-2 hover:bg-white/[0.05] rounded-lg text-zinc-500 hover:text-white transition-colors"
+                                    >
                                         <Edit2 size={14} />
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => deleteSchedule(schedule.id)}
                                         className="p-2 hover:bg-red-500/10 rounded-lg text-zinc-500 hover:text-red-400 transition-colors"
                                     >
@@ -231,7 +266,7 @@ export default function SchedulesPage() {
                             <h3 className="text-lg font-medium text-white mb-2">No scheduled jobs</h3>
                             <p className="text-sm text-zinc-500 mb-4">Create a schedule to automate security scans</p>
                             <button
-                                onClick={() => setShowCreateModal(true)}
+                                onClick={openCreateModal}
                                 className="btn-gradient"
                             >
                                 Create Schedule
@@ -249,7 +284,7 @@ export default function SchedulesPage() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
-                        onClick={() => setShowCreateModal(false)}
+                        onClick={closeModal}
                     >
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0 }}
@@ -260,9 +295,9 @@ export default function SchedulesPage() {
                         >
                             {/* Modal Header */}
                             <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
-                                <h2 className="text-lg font-semibold text-white">Create Schedule</h2>
-                                <button 
-                                    onClick={() => setShowCreateModal(false)}
+                                <h2 className="text-lg font-semibold text-white">{editingSchedule ? 'Update Schedule' : 'Create Schedule'}</h2>
+                                <button
+                                    onClick={closeModal}
                                     className="p-1 hover:bg-white/[0.05] rounded"
                                 >
                                     <X size={18} className="text-zinc-500" />
@@ -338,7 +373,7 @@ export default function SchedulesPage() {
                             {/* Modal Footer */}
                             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/[0.06]">
                                 <button
-                                    onClick={() => setShowCreateModal(false)}
+                                    onClick={closeModal}
                                     className="btn-ghost"
                                 >
                                     Cancel
@@ -348,7 +383,7 @@ export default function SchedulesPage() {
                                     disabled={!newSchedule.name || !newSchedule.target}
                                     className="btn-gradient disabled:opacity-50"
                                 >
-                                    Create Schedule
+                                    {editingSchedule ? 'Update Schedule' : 'Create Schedule'}
                                 </button>
                             </div>
                         </motion.div>

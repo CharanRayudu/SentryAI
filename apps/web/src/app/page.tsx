@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAgentSocket } from '@/hooks/useAgentSocket';
 import { AppLayout } from '@/components/layout/AppLayout';
 import Sidebar from '@/components/layout/Sidebar';
@@ -12,6 +12,14 @@ import SchedulesPage from '@/components/SchedulesPage';
 import IntegrationsPage from '@/components/IntegrationsPage';
 import ActiveOperation from '@/components/ActiveOperation';
 import { useTaskStore } from '@/stores/useTaskStore';
+
+type PlanProposalMessage = {
+    type: 'server:plan_proposal';
+    mission_id?: string;
+    plan_id?: string;
+    thought_process?: string;
+    steps?: string[];
+};
 
 function OperationsPage() {
     const { activeTaskId } = useTaskStore();
@@ -41,24 +49,81 @@ function OperationsPage() {
     );
 }
 
+type KnowledgeDoc = { name: string; size: number; uploadedAt: string };
+
 function KnowledgePage() {
+    const [documents, setDocuments] = useState<KnowledgeDoc[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files || []);
+        if (!files.length) return;
+
+        const timestamp = new Date().toLocaleString();
+        const uploaded = files.map((file) => ({ name: file.name, size: file.size, uploadedAt: timestamp }));
+        setDocuments((prev) => [...uploaded, ...prev]);
+        event.target.value = '';
+    };
+
+    const removeDocument = (name: string) => {
+        setDocuments((prev) => prev.filter((doc) => doc.name !== name));
+    };
+
     return (
         <div className="flex flex-col h-full p-6">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-white">Knowledge Base</h1>
-                <p className="text-zinc-500 text-sm">Upload documents to enhance AI context</p>
-            </div>
-            <div className="flex-1 flex items-center justify-center neo-panel rounded-xl border-dashed">
-                <div className="text-center text-zinc-500">
-                    <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                        </svg>
-                    </div>
-                    <h3 className="text-lg font-medium text-white mb-2">No documents uploaded</h3>
-                    <p className="text-sm mb-4">Upload Swagger specs, network diagrams, or security policies</p>
-                    <button className="btn-gradient">Upload Document</button>
+            <div className="mb-6 flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-white">Knowledge Base</h1>
+                    <p className="text-zinc-500 text-sm">Upload documents to enhance AI context</p>
                 </div>
+                <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="btn-gradient"
+                >
+                    Upload Document
+                </button>
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleUpload}
+                />
+            </div>
+
+            <div className="flex-1 neo-panel rounded-xl border-dashed p-6 overflow-y-auto">
+                {documents.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center text-zinc-500">
+                        <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-medium text-white mb-2">No documents uploaded</h3>
+                        <p className="text-sm mb-4">Upload Swagger specs, network diagrams, or security policies</p>
+                        <button className="btn-gradient" onClick={() => fileInputRef.current?.click()}>Choose files</button>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {documents.map((doc) => (
+                            <div
+                                key={doc.name}
+                                className="flex items-center justify-between p-4 rounded-lg border border-white/10 bg-white/[0.02]"
+                            >
+                                <div>
+                                    <p className="text-white text-sm font-medium">{doc.name}</p>
+                                    <p className="text-xs text-zinc-500">{(doc.size / 1024).toFixed(1)} KB · Uploaded {doc.uploadedAt}</p>
+                                </div>
+                                <button
+                                    className="text-xs text-red-400 hover:text-red-300"
+                                    onClick={() => removeDocument(doc.name)}
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -177,14 +242,27 @@ function FilesPage() {
 
 export default function Home() {
     const [activeView, setActiveView] = useState('new');
-    const { omnibarPosition, updateTask } = useTaskStore();
+    const { omnibarPosition, updateTask, tasks } = useTaskStore();
     const { lastMessage } = useAgentSocket();
+
+    const stats = useMemo(() => {
+        const fileCount = tasks.reduce((acc, task) => acc + (task.artifacts?.length ?? 0), 0);
+        const running = tasks.filter((task) => task.status === 'running').length;
+        const logLines = tasks.reduce((acc, task) => acc + task.logs.length, 0);
+
+        return [
+            { label: 'Tasks', value: tasks.length },
+            { label: 'Running', value: running },
+            { label: 'Files', value: fileCount },
+            { label: 'Logs', value: logLines }
+        ];
+    }, [tasks]);
 
     // Handle WebSocket messages globally
     useEffect(() => {
         if (lastMessage) {
             if (lastMessage.type === 'server:plan_proposal') {
-                const plan = lastMessage as any; // Cast to access payload
+                const plan = lastMessage as PlanProposalMessage;
                 console.log("Received plan proposal:", plan);
 
                 // Find task by mission_id or active task
@@ -199,6 +277,7 @@ export default function Home() {
                             steps: plan.steps
                         }
                     });
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
                     setActiveView('operations');
                 }
             } else if (lastMessage.type === 'server:job_status') {
@@ -243,10 +322,11 @@ export default function Home() {
                                 <h1 className="text-4xl font-semibold text-white leading-tight">Describe the task you want me to execute.</h1>
                                 <p className="text-zinc-500 max-w-2xl">Delegate research, reconnaissance, and vulnerability discovery to the autonomous agent. I will track artifacts, connections, and variables as the mission unfolds.</p>
                                 <div className="flex flex-wrap gap-2 mt-1">
-                                    <span className="stat-pill">Tasks · 11</span>
-                                    <span className="stat-pill">Files · 7</span>
-                                    <span className="stat-pill">Connections · 4</span>
-                                    <span className="stat-pill">Variables · 8</span>
+                                    {stats.map((stat) => (
+                                        <span key={stat.label} className="stat-pill">
+                                            {stat.label} · {stat.value}
+                                        </span>
+                                    ))}
                                 </div>
                             </div>
 
@@ -282,12 +362,12 @@ export default function Home() {
 
                             <div className="glass-card border border-white/10 rounded-2xl overflow-hidden">
                                 <div className="flex items-center gap-2 px-5 py-3 border-b border-white/5 text-sm text-zinc-400">
-                                    {['Tasks 11', 'Files 7', 'Connections 4', 'Variables 8'].map((tab, idx) => (
+                                    {stats.map((tab, idx) => (
                                         <button
-                                            key={tab}
+                                            key={tab.label}
                                             className={`pill-tab ${idx === 0 ? 'active' : ''}`}
                                         >
-                                            {tab}
+                                            {tab.label} {tab.value}
                                         </button>
                                     ))}
                                 </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus,
@@ -27,12 +27,6 @@ interface Project {
     lastActive: string;
 }
 
-const SAMPLE_PROJECTS: Project[] = [
-    { id: '1', name: 'Auth Protocol', status: 'active', lastActive: '2 min ago' },
-    { id: '2', name: 'SOC 2 Audit', status: 'pending', lastActive: '1 hour ago' },
-    { id: '3', name: 'AWS Config Review', status: 'completed', lastActive: 'Yesterday' },
-];
-
 interface NavItem {
     icon: React.ElementType;
     label: string;
@@ -43,13 +37,13 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
     { icon: Plus, label: 'New Task', id: 'new' },
     { icon: Bot, label: 'Agents', id: 'agents' },
-    { icon: FolderOpen, label: 'Files', id: 'files', badge: 3 },
+    { icon: FolderOpen, label: 'Files', id: 'files' },
     { icon: BookOpen, label: 'Knowledge', id: 'knowledge' },
     { icon: Terminal, label: 'Console', id: 'console' },
 ];
 
 const SECONDARY_NAV: NavItem[] = [
-    { icon: Shield, label: 'Findings', id: 'findings', badge: 12 },
+    { icon: Shield, label: 'Findings', id: 'findings' },
     { icon: Activity, label: 'Operations', id: 'operations' },
     { icon: Calendar, label: 'Schedules', id: 'schedules' },
     { icon: Link2, label: 'Integrations', id: 'integrations' },
@@ -63,6 +57,29 @@ interface SidebarProps {
 export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
     const [projectsExpanded, setProjectsExpanded] = useState(true);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [newProjectName, setNewProjectName] = useState('');
+    const [newProjectStatus, setNewProjectStatus] = useState<Project['status']>('active');
+    const [showProjectForm, setShowProjectForm] = useState(false);
+
+    const canCreateProject = useMemo(() => newProjectName.trim().length > 1, [newProjectName]);
+
+    const handleCreateProject = () => {
+        if (!canCreateProject) return;
+
+        const now = new Date();
+        const project: Project = {
+            id: crypto.randomUUID(),
+            name: newProjectName.trim(),
+            status: newProjectStatus,
+            lastActive: now.toLocaleString()
+        };
+
+        setProjects((prev) => [project, ...prev]);
+        setNewProjectName('');
+        setNewProjectStatus('active');
+        setShowProjectForm(false);
+    };
 
     return (
         <aside className="w-[260px] h-screen flex flex-col bg-surface-900 border-r border-border-subtle">
@@ -143,7 +160,7 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
                 <div
                     className="flex items-center justify-between px-4 py-2 text-sm hover:bg-white/[0.02] transition-colors cursor-pointer"
                 >
-                    <span 
+                    <span
                         onClick={() => setProjectsExpanded(!projectsExpanded)}
                         className="text-[10px] uppercase tracking-wider text-zinc-600 font-semibold cursor-pointer flex-1"
                     >
@@ -152,11 +169,16 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
                     <div className="flex items-center gap-1">
                         <button
                             className="p-1 hover:bg-white/[0.05] rounded"
-                            onClick={(e) => { e.stopPropagation(); }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowProjectForm((prev) => !prev);
+                                setProjectsExpanded(true);
+                            }}
+                            aria-label="Add project"
                         >
                             <Plus size={14} className="text-zinc-500" />
                         </button>
-                        <span 
+                        <span
                             onClick={() => setProjectsExpanded(!projectsExpanded)}
                             className="cursor-pointer"
                         >
@@ -176,7 +198,42 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-y-auto px-2 space-y-0.5"
                         >
-                            {SAMPLE_PROJECTS.map((project) => (
+                            {showProjectForm && (
+                                <div className="p-3 mb-1 rounded-lg border border-white/[0.08] bg-white/[0.02] space-y-2">
+                                    <input
+                                        value={newProjectName}
+                                        onChange={(e) => setNewProjectName(e.target.value)}
+                                        placeholder="Project name"
+                                        className="w-full px-3 py-2 rounded-md bg-[#0b0b0b] border border-white/10 text-sm text-white focus:outline-none focus:border-purple-500/50"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            value={newProjectStatus}
+                                            onChange={(e) => setNewProjectStatus(e.target.value as Project['status'])}
+                                            className="flex-1 px-3 py-2 rounded-md bg-[#0b0b0b] border border-white/10 text-sm text-white focus:outline-none focus:border-purple-500/50"
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="completed">Completed</option>
+                                        </select>
+                                        <button
+                                            onClick={handleCreateProject}
+                                            disabled={!canCreateProject}
+                                            className="px-3 py-2 rounded-md bg-purple-600 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {projects.length === 0 && !showProjectForm && (
+                                <div className="px-3 py-4 text-sm text-zinc-600 border border-dashed border-white/10 rounded-lg text-center">
+                                    No projects yet. Click the plus icon to add one.
+                                </div>
+                            )}
+
+                            {projects.map((project) => (
                                 <button
                                     key={project.id}
                                     className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/[0.03] transition-colors group"

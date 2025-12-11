@@ -6,18 +6,9 @@ import {
     XCircle,
     Loader2,
     ChevronRight,
-    Terminal as TerminalIcon,
-    RefreshCcw
+    Terminal as TerminalIcon
 } from 'lucide-react';
 import { useTaskStore, Task } from '@/stores/useTaskStore';
-
-const SAMPLE_RECENTS = [
-    { title: 'Nuclei templates for previously known vulnerabilities', owner: 'Ananya Sharma', date: 'Dec 1', duration: '3m 24s' },
-    { title: 'API endpoint enumeration', owner: 'Jake Morrison', date: 'Nov 30', duration: '9m 02s' },
-    { title: 'Authentication flow analysis', owner: 'Yuki Tanaka', date: 'Nov 29', duration: '45m 23s' },
-    { title: 'Rate limiting bypass testing', owner: 'Rahul Verma', date: 'Nov 28', duration: '12m 05s' },
-    { title: 'JWT token security audit', owner: 'Tyler Brooks', date: 'Nov 27', duration: '10m 11s' },
-];
 
 const statusChip = (status: Task['status']) => {
     switch (status) {
@@ -113,21 +104,8 @@ const TaskRow = ({ task }: { task: Task }) => {
     );
 };
 
-const SampleRow = ({ item }: { item: typeof SAMPLE_RECENTS[0] }) => (
-    <div className="flex items-center gap-3 py-3 px-4 rounded-2xl soft-card border border-white/5 hover:border-white/15 transition-all">
-        <div className="w-9 h-9 rounded-full bg-white/[0.03] border border-white/10 flex items-center justify-center text-sm text-white/80">
-            <RefreshCcw size={16} />
-        </div>
-        <div className="flex-1 min-w-0">
-            <p className="text-base text-white truncate">{item.title}</p>
-            <p className="text-xs text-zinc-600">{item.date} · {item.owner}</p>
-        </div>
-        <div className="text-xs text-zinc-500">{item.duration}</div>
-    </div>
-);
-
 export default function TaskExecutionList() {
-    const { tasks } = useTaskStore();
+    const { tasks, setOmnibarPosition } = useTaskStore();
 
     return (
         <div className="w-full max-w-5xl mx-auto py-4 space-y-2">
@@ -136,24 +114,16 @@ export default function TaskExecutionList() {
                     <TaskRow key={task.id} task={task} />
                 ))
             ) : (
-                <>
-                    <div className="flex items-center justify-between px-1 pb-1">
-                        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-zinc-600 font-semibold">
-                            <span className="w-2 h-2 rounded-full bg-zinc-500" />
-                            Task backlog
-                        </div>
-                        <div className="text-[11px] text-zinc-600">Recent activity</div>
-                    </div>
-                    {SAMPLE_RECENTS.map((item) => (
-                        <SampleRow key={item.title} item={item} />
-                    ))}
-                    <div className="h-28 flex items-center justify-center border border-dashed border-white/10 rounded-2xl text-center text-zinc-600">
-                        <div>
-                            <TerminalIcon className="w-7 h-7 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">Your missions will stream here once started.</p>
-                        </div>
-                    </div>
-                </>
+                <div className="h-32 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl text-center text-zinc-600 gap-2">
+                    <TerminalIcon className="w-7 h-7 opacity-50" />
+                    <p className="text-sm">No missions yet. Start one to see live progress.</p>
+                    <button
+                        className="btn-gradient text-xs"
+                        onClick={() => setOmnibarPosition('center')}
+                    >
+                        Open mission launcher
+                    </button>
+                </div>
             )}
         </div>
     );

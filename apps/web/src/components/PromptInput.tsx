@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Paperclip, Bot, ArrowUp, ChevronDown, Sparkles, Link2, Globe2, Clock3, Mic } from 'lucide-react';
 import { useTaskStore } from '@/stores/useTaskStore';
@@ -7,6 +7,20 @@ export default function PromptInput() {
     const [prompt, setPrompt] = useState("");
     const [agentMenuOpen, setAgentMenuOpen] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
+    const [attachments, setAttachments] = useState<string[]>([]);
+    const [templatesOpen, setTemplatesOpen] = useState(false);
+    const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+    const [linkCollectionEnabled, setLinkCollectionEnabled] = useState(false);
+    const [schedulePreset, setSchedulePreset] = useState<'Run now' | 'Hourly' | 'Daily'>('Run now');
+    const [listening, setListening] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const templateOptions = [
+        'Enumerate application attack surface and list reachable services.',
+        'Probe authentication and session management with safe defaults.',
+        'Search for common misconfigurations and insecure headers.',
+        'Summarize remediation steps for each confirmed finding.'
+    ];
 
     const { omnibarPosition, setOmnibarPosition, startMission } = useTaskStore();
 
@@ -23,6 +37,30 @@ export default function PromptInput() {
             e.preventDefault();
             handleSubmit();
         }
+    };
+
+    const handleAttachment = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files || []).map(file => file.name);
+        if (files.length === 0) return;
+        setAttachments((prev) => [...prev, ...files]);
+        event.target.value = '';
+    };
+
+    const removeAttachment = (name: string) => {
+        setAttachments((prev) => prev.filter((file) => file !== name));
+    };
+
+    const toggleSchedulePreset = () => {
+        setSchedulePreset((prev) => {
+            if (prev === 'Run now') return 'Hourly';
+            if (prev === 'Hourly') return 'Daily';
+            return 'Run now';
+        });
+    };
+
+    const applyTemplate = (template: string) => {
+        setPrompt((prev) => prev ? `${prev}\n${template}` : template);
+        setTemplatesOpen(false);
     };
 
     return (
@@ -63,10 +101,51 @@ export default function PromptInput() {
                     />
 
                     <div className="flex items-center justify-between rounded-2xl bg-white/[0.02] border border-white/[0.04] px-3 py-2 md:px-4 md:py-3">
-                        <div className="flex items-center gap-1 md:gap-2">
-                            <button className="toolbar-btn"><Paperclip size={16} /></button>
-                            <button className="toolbar-btn"><Sparkles size={16} /></button>
-                            <button className="toolbar-btn"><ChevronDown size={16} /></button>
+                        <div className="flex items-center gap-1 md:gap-2 relative">
+                            <button
+                                className={`toolbar-btn ${attachments.length ? 'text-purple-300' : ''}`}
+                                onClick={() => fileInputRef.current?.click()}
+                                title="Attach reference files"
+                            >
+                                <Paperclip size={16} />
+                            </button>
+                            <div className="relative">
+                                <button
+                                    className={`toolbar-btn ${templatesOpen ? 'text-purple-300' : ''}`}
+                                    onClick={() => setTemplatesOpen(!templatesOpen)}
+                                    title="Open prompt templates"
+                                >
+                                    <Sparkles size={16} />
+                                </button>
+                                <button
+                                    className={`toolbar-btn ${templatesOpen ? 'text-purple-300' : ''}`}
+                                    onClick={() => setTemplatesOpen(!templatesOpen)}
+                                    title="Show templates"
+                                >
+                                    <ChevronDown size={16} />
+                                </button>
+
+                                <AnimatePresence>
+                                    {templatesOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 10 }}
+                                            className="absolute left-0 mt-2 w-72 bg-surface-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden p-1 z-50"
+                                        >
+                                            {templateOptions.map((template) => (
+                                                <button
+                                                    key={template}
+                                                    onClick={() => applyTemplate(template)}
+                                                    className="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                                                >
+                                                    {template}
+                                                </button>
+                                            ))}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
 
                             <div className="relative ml-1">
                                 <button
@@ -103,11 +182,35 @@ export default function PromptInput() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <button className="toolbar-btn"><Link2 size={16} /></button>
-                            <button className="toolbar-btn"><Globe2 size={16} /></button>
-                            <button className="toolbar-btn"><Clock3 size={16} /></button>
+                            <button
+                                className={`toolbar-btn ${linkCollectionEnabled ? 'text-purple-300 bg-white/[0.06]' : ''}`}
+                                onClick={() => setLinkCollectionEnabled(!linkCollectionEnabled)}
+                                title="Collect source links"
+                            >
+                                <Link2 size={16} />
+                            </button>
+                            <button
+                                className={`toolbar-btn ${webSearchEnabled ? 'text-purple-300 bg-white/[0.06]' : ''}`}
+                                onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                                title="Allow web discovery"
+                            >
+                                <Globe2 size={16} />
+                            </button>
+                            <button
+                                className={`toolbar-btn ${schedulePreset !== 'Run now' ? 'text-purple-300 bg-white/[0.06]' : ''}`}
+                                onClick={toggleSchedulePreset}
+                                title={`Schedule: ${schedulePreset}`}
+                            >
+                                <Clock3 size={16} />
+                            </button>
                             <div className="flex items-center gap-2">
-                                <button className="toolbar-btn"><Mic size={16} /></button>
+                                <button
+                                    className={`toolbar-btn ${listening ? 'text-purple-300 bg-white/[0.06]' : ''}`}
+                                    onClick={() => setListening(!listening)}
+                                    title={listening ? 'Listening' : 'Start voice capture'}
+                                >
+                                    <Mic size={16} />
+                                </button>
                                 <button className="p-2.5 rounded-full border border-white/10 bg-white/[0.03] text-zinc-300 hover:text-white hover:border-white/20 transition">
                                     <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5}>
                                         <path d="M12 18.5v-13" strokeLinecap="round" />
@@ -129,6 +232,29 @@ export default function PromptInput() {
                             </div>
                         </div>
                     </div>
+
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={handleAttachment}
+                    />
+
+                    {(attachments.length > 0 || linkCollectionEnabled || webSearchEnabled || schedulePreset !== 'Run now' || listening) && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                            {attachments.map((file) => (
+                                <span key={file} className="px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-xs text-zinc-200 flex items-center gap-2">
+                                    {file}
+                                    <button className="text-zinc-500 hover:text-white" onClick={() => removeAttachment(file)}>×</button>
+                                </span>
+                            ))}
+                            {linkCollectionEnabled && <span className="stat-pill text-purple-200">Link collection on</span>}
+                            {webSearchEnabled && <span className="stat-pill text-purple-200">Web search enabled</span>}
+                            {schedulePreset !== 'Run now' && <span className="stat-pill text-purple-200">{schedulePreset} cadence</span>}
+                            {listening && <span className="stat-pill text-purple-200">Listening for voice notes</span>}
+                        </div>
+                    )}
                 </div>
             </div>
 
