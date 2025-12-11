@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Sparkles, ArrowRight, Command, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAgentSocket } from '@/hooks/useAgentSocket';
+import { useAgentSocket, AgentMessage } from '@/hooks/useAgentSocket';
 
 interface CommandCenterProps {
     onMissionStart?: (target: string) => void;
@@ -14,34 +14,38 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
     const [input, setInput] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [lastMessage, setLastMessage] = useState<string | null>(null);
-    
-    const { isConnected, sendMessage, connectionError, lastMessage: wsMessage } = useAgentSocket();
+    const [activeMissionId, setActiveMissionId] = useState<string | null>(null);
+    const [activeRunId, setActiveRunId] = useState<string | null>(null);
 
-    // Handle WebSocket messages
-    useEffect(() => {
-        /* eslint-disable react-hooks/set-state-in-effect */
-        if (wsMessage) {
-            const messageType = wsMessage.type;
+    const handleSocketMessage = useCallback((message: AgentMessage) => {
+        const messageType = message.type;
 
-            if (messageType === 'server:agent_thought') {
-                setLastMessage(wsMessage.log || 'Processing...');
-            } else if (messageType === 'server:plan_proposal') {
-                setLastMessage('Execution plan generated. Reviewing...');
-                setIsSubmitting(false);
-                // Navigate to operations view if callback provided
-                if (onViewChange) {
-                    setTimeout(() => onViewChange('operations'), 1000);
-                }
-            } else if (messageType === 'server:error') {
-                setLastMessage(`Error: ${wsMessage.message || 'Unknown error'}`);
-                setIsSubmitting(false);
-            } else if (messageType === 'server:job_status') {
-                setLastMessage(`Mission ${wsMessage.status || 'started'}`);
-                setIsSubmitting(false);
+        if (messageType === 'server:agent_thought') {
+            setLastMessage((message.log as string) || 'Processing...');
+        } else if (messageType === 'server:plan_proposal') {
+            setLastMessage('Execution plan generated. Reviewing...');
+            setIsSubmitting(false);
+            if (onViewChange) {
+                setTimeout(() => onViewChange('operations'), 1000);
             }
+        } else if (messageType === 'server:error') {
+            setLastMessage(`Error: ${(message.message as string) || 'Unknown error'}`);
+            setIsSubmitting(false);
+        } else if (messageType === 'server:job_status') {
+            setLastMessage(`Mission ${(message.status as string) || 'started'}`);
+            if (message.mission_id && typeof message.mission_id === 'string') {
+                setActiveMissionId(message.mission_id);
+            }
+            if (message.run_id && typeof message.run_id === 'string') {
+                setActiveRunId(message.run_id);
+            }
+            setIsSubmitting(false);
+        } else if (messageType === 'server:job_log') {
+            setLastMessage((message.log as string) || 'Processing...');
         }
-        /* eslint-enable react-hooks/set-state-in-effect */
-    }, [wsMessage, onViewChange]);
+    }, [onViewChange]);
+
+    const { isConnected, sendMessage, stopMission, connectionError } = useAgentSocket({ onMessage: handleSocketMessage });
 
     const handleSubmit = useCallback((message: string) => {
         if (!message.trim()) {
@@ -55,6 +59,8 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
 
         setIsSubmitting(true);
         setLastMessage('Sending mission objective...');
+        setActiveMissionId(null);
+        setActiveRunId(null);
 
         // Extract target from message for callback
         const targetMatch = message.match(/(?:scan|audit|test|check)\s+([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
@@ -64,7 +70,6 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
 
         // Send message via WebSocket
         sendMessage('client:message', {
-            session_id: crypto.randomUUID(),
             content: message,
             context_files: []
         });
@@ -74,6 +79,12 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
             onMissionStart(target);
         }
     }, [isConnected, sendMessage, onMissionStart]);
+
+    const handleStop = useCallback(() => {
+        stopMission(activeMissionId ?? undefined, activeRunId ?? undefined);
+        setIsSubmitting(false);
+        setLastMessage('Stopping mission...');
+    }, [stopMission, activeMissionId, activeRunId]);
 
     const handleQuickAction = useCallback((action: string) => {
         const messages: Record<string, string> = {
@@ -173,22 +184,32 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
                             disabled={isSubmitting || !isConnected}
                             className="flex-1 bg-transparent border-none text-lg text-white placeholder-zinc-600 focus:ring-0 focus:outline-none h-12 neo-input disabled:opacity-50 disabled:cursor-not-allowed"
                         />
-                        <button
-                            onClick={() => handleSubmit(input)}
-                            disabled={isSubmitting || !isConnected || !input.trim()}
-                            className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors ml-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/10"
-                        >
-                            {isSubmitting ? (
-                                <motion.div
-                                    animate={{ rotate: 360 }}
-                                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                >
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handleSubmit(input)}
+                                disabled={isSubmitting || !isConnected || !input.trim()}
+                                className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/10"
+                            >
+                                {isSubmitting ? (
+                                    <motion.div
+                                        animate={{ rotate: 360 }}
+                                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                    >
+                                        <ArrowRight size={20} />
+                                    </motion.div>
+                                ) : (
                                     <ArrowRight size={20} />
-                                </motion.div>
-                            ) : (
-                                <ArrowRight size={20} />
-                            )}
-                        </button>
+                                )}
+                            </button>
+                            <button
+                                onClick={handleStop}
+                                disabled={!isConnected || !activeMissionId}
+                                className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Stop current mission"
+                            >
+                                Stop
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -235,5 +256,3 @@ export default function CommandCenter({ onMissionStart, onViewChange }: CommandC
         </div>
     );
 }
-
-

@@ -268,13 +268,18 @@ export default function Home() {
                 // Find task by mission_id or active task
                 // Since the message usually comes after start, we assume we want to update the relevant task.
                 // The task ID in store matches mission_id.
-                if (plan.mission_id || plan.plan_id) {
-                    const missionId = plan.mission_id || plan.plan_id;
+                const missionId = plan.mission_id || plan.plan_id;
+                if (missionId) {
                     updateTask(missionId, {
                         status: 'planning',
                         plan: {
-                            thought_process: plan.thought_process,
-                            steps: plan.steps
+                            thought_process: plan.thought_process || '',
+                            steps: (plan.steps || []).map((step, i) => ({
+                                id: i + 1,
+                                tool: 'system',
+                                args: '',
+                                description: step
+                            }))
                         }
                     });
                     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -332,35 +337,8 @@ export default function Home() {
 
                             <PromptInput />
 
-                            <div className="glass-card border border-white/10 rounded-2xl overflow-hidden">
-                                <div className="px-5 py-4 border-b border-white/5 flex items-center gap-3 text-sm text-white">
-                                    <div className="w-8 h-8 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center">
-                                        <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="1.4">
-                                            <path d="M3 9h18M4 5h16M6 13h12M9 17h6" strokeLinecap="round" />
-                                        </svg>
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-xs uppercase tracking-[0.22em] text-zinc-500">Mission Planning</span>
-                                        <span>Generating plan...</span>
-                                    </div>
-                                </div>
-                                <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-zinc-300">
-                                    {[
-                                        'Researching · api security vulnerabilities, OWASP top 10',
-                                        'Memory recall · found 4 relevant conversations',
-                                        'Knowledge search · api-endpoints.yaml, nuclei-templates.json, auth-flow-...',
-                                        'Web search · matrix corp api documentation, recent CVEs',
-                                        'Analyzing · identifying attack vectors and test scenarios',
-                                    ].map((item) => (
-                                        <div key={item} className="flex items-center gap-2 rounded-xl bg-white/[0.03] border border-white/5 px-3 py-2">
-                                            <span className="w-2 h-2 rounded-full bg-amber-400" />
-                                            <span className="text-zinc-200">{item}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
 
-                            <div className="glass-card border border-white/10 rounded-2xl overflow-hidden">
+                            <div>
                                 <div className="flex items-center gap-2 px-5 py-3 border-b border-white/5 text-sm text-zinc-400">
                                     {stats.map((tab, idx) => (
                                         <button
